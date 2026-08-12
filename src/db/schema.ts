@@ -17,10 +17,18 @@ export type BedConfig = {
   count: number;
 };
 
+export type NearbyLift = {
+  name: string;
+  /** Distance from accommodation in kilometers */
+  km: number;
+};
+
 export type SkiTypeDetails = {
   skiArea?: string;
   /** Distance to nearest lift in kilometers */
   kmToLift?: number;
+  /** Nearby ski lifts/stations with distance from the house */
+  nearbyLifts?: NearbyLift[];
   /** @deprecated Prefer kmToLift; kept for older records */
   minutesToLift?: number;
   /** AI-written overview of the ski area */

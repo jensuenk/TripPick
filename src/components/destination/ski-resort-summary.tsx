@@ -18,6 +18,13 @@ export function SkiResortSummary({ destination }: Props) {
   const cachedVersion = destination.typeDetails?.skiResortSummaryVersion;
   const usableCache =
     cached && cachedVersion === SKI_SUMMARY_VERSION ? cached : null;
+  const requestKey = [
+    destination.id,
+    skiArea,
+    destination.typeDetails?.kmToLift ?? "",
+    JSON.stringify(destination.typeDetails?.nearbyLifts ?? []),
+    SKI_SUMMARY_VERSION,
+  ].join(":");
 
   const [summary, setSummary] = useState<string | null>(usableCache);
   const [loading, setLoading] = useState(false);
@@ -32,11 +39,11 @@ export function SkiResortSummary({ destination }: Props) {
   useEffect(() => {
     if (!skiArea) return;
     if (summary) return;
-    if (requestedFor.current === `${destination.id}:${skiArea}`) return;
-    requestedFor.current = `${destination.id}:${skiArea}`;
+    if (requestedFor.current === requestKey) return;
+    requestedFor.current = requestKey;
     void generate(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destination.id, skiArea, summary]);
+  }, [requestKey, summary]);
 
   async function generate(force: boolean) {
     if (!skiArea) return;
@@ -101,7 +108,7 @@ export function SkiResortSummary({ destination }: Props) {
           className="shrink-0"
           disabled={loading}
           onClick={() => {
-            requestedFor.current = `${destination.id}:${skiArea}:force`;
+            requestedFor.current = `${requestKey}:force`;
             void generate(true);
           }}
           aria-label="AI-samenvatting opnieuw genereren"

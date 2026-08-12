@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Info,
   Loader2,
   Plus,
   Sparkles,
@@ -28,7 +29,7 @@ import {
 import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
 import { useTrip } from "@/components/trip/trip-context";
 import type { ApiDestination } from "@/lib/trip-data";
-import type { BedConfig } from "@/db/schema";
+import type { BedConfig, NearbyLift } from "@/db/schema";
 import { BED_TYPES, IMAGE_CATEGORIES, type ImageCategory } from "@/lib/trip-types";
 import { geocodeLocation } from "@/lib/geocoding";
 import { uploadImage } from "@/lib/upload";
@@ -39,7 +40,7 @@ import {
   eurosToCents,
   LIFT_DRIVE_KMH,
 } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 
 type ImageDraft = {
   blobUrl: string;
@@ -60,6 +61,7 @@ type FormState = {
   beds: BedConfig[];
   skiArea: string;
   kmToLift: string;
+  nearbyLifts: NearbyLift[];
   description: string;
   pros: string[];
   cons: string[];
@@ -83,6 +85,9 @@ function fromDestination(d?: ApiDestination | null): FormState {
       d?.typeDetails?.kmToLift != null
         ? String(d.typeDetails.kmToLift)
         : "",
+    nearbyLifts: Array.isArray(d?.typeDetails?.nearbyLifts)
+      ? (d!.typeDetails.nearbyLifts as NearbyLift[])
+      : [],
     description: d?.description ?? "",
     pros: d?.pros ?? [],
     cons: d?.cons ?? [],
@@ -115,22 +120,30 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
   const [proInput, setProInput] = useState("");
   const [conInput, setConInput] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importDisclaimer, setImportDisclaimer] = useState(false);
 
   // Reset when opening for a different destination
   useEffect(() => {
     if (open) {
       setForm(fromDestination(destination));
       setStep(0);
+      setImportUrl("");
+      setImportError(null);
+      setImportDisclaimer(false);
     }
   }, [open, destination]);
 
   const canNext = step === 0 ? form.name.trim().length > 0 : true;
 
-  async function handleGeocode() {
-    if (!form.locationText.trim()) return;
+  async function handleGeocode(locationOverride?: string) {
+    const query = (locationOverride ?? form.locationText).trim();
+    if (!query) return;
     setGeocoding(true);
     try {
-      const result = await geocodeLocation(form.locationText);
+      const result = await geocodeLocation(query);
       if (!result) {
         toast.error("Kon die locatie niet vinden");
         return;
@@ -144,6 +157,113 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
       toast.success("Locatie gevonden");
     } finally {
       setGeocoding(false);
+    }
+  }
+
+  async function handleImportListing() {
+    const url = importUrl.trim() || form.bookingUrl.trim();
+    if (!url) {
+      setImportError("Plak eerst een boekingslink.");
+      return;
+    }
+    setImporting(true);
+    setImportError(null);
+    setImportDisclaimer(false);
+    try {
+      const res = await fetch("/api/extract-listing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string"
+            ? data.error
+            : "Importeren mislukt. Probeer een andere link of vul handmatig in."
+        );
+      }
+
+      const importedImages: ImageDraft[] = Array.isArray(data.imageUrls)
+        ? data.imageUrls
+            .filter((u: unknown): u is string => typeof u === "string")
+            .map((blobUrl: string, index: number) => ({
+              blobUrl,
+              category: "accommodation" as ImageCategory,
+              sortOrder: index,
+              localId: crypto.randomUUID(),
+            }))
+        : [];
+
+      const nearbyLifts: NearbyLift[] = Array.isArray(data.nearbyLifts)
+        ? data.nearbyLifts
+            .filter(
+              (l: { name?: unknown; km?: unknown }) =>
+                typeof l?.name === "string" && typeof l?.km === "number"
+            )
+            .map((l: { name: string; km: number }) => ({
+              name: l.name,
+              km: l.km,
+            }))
+        : [];
+
+      const locationText =
+        typeof data.locationText === "string" ? data.locationText : "";
+
+      setForm((f) => ({
+        ...f,
+        name: typeof data.name === "string" && data.name ? data.name : f.name,
+        locationText: locationText || f.locationText,
+        lat: null,
+        lng: null,
+        bookingUrl:
+          typeof data.bookingUrl === "string" ? data.bookingUrl : url,
+        priceEuros:
+          typeof data.priceTotalEuros === "number"
+            ? String(Math.round(data.priceTotalEuros))
+            : f.priceEuros,
+        bedrooms:
+          typeof data.bedrooms === "number" ? String(data.bedrooms) : f.bedrooms,
+        bathrooms:
+          typeof data.bathrooms === "number"
+            ? String(data.bathrooms)
+            : f.bathrooms,
+        beds: Array.isArray(data.beds) && data.beds.length ? data.beds : f.beds,
+        skiArea:
+          typeof data.skiArea === "string" && data.skiArea
+            ? data.skiArea
+            : f.skiArea,
+        kmToLift:
+          typeof data.kmToLift === "number"
+            ? String(data.kmToLift)
+            : f.kmToLift,
+        nearbyLifts: nearbyLifts.length ? nearbyLifts : f.nearbyLifts,
+        description:
+          typeof data.description === "string" && data.description
+            ? data.description
+            : f.description,
+        pros:
+          Array.isArray(data.pros) && data.pros.length ? data.pros : f.pros,
+        cons:
+          Array.isArray(data.cons) && data.cons.length ? data.cons : f.cons,
+        images: importedImages.length ? importedImages : f.images,
+      }));
+
+      setImportUrl(typeof data.bookingUrl === "string" ? data.bookingUrl : url);
+      setImportDisclaimer(true);
+      toast.success("Gegevens ingevuld — controleer ze even");
+
+      if (locationText) {
+        void handleGeocode(locationText);
+      }
+    } catch (error) {
+      setImportError(
+        error instanceof Error
+          ? error.message
+          : "Importeren mislukt. Vul handmatig in."
+      );
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -197,6 +317,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         typeDetails: {
           skiArea: form.skiArea || undefined,
           kmToLift: form.kmToLift ? Number(form.kmToLift) : undefined,
+          nearbyLifts: form.nearbyLifts.filter(
+            (l) => l.name.trim() && Number.isFinite(l.km)
+          ),
         },
         images: form.images.map((img, index) => ({
           blobUrl: img.blobUrl,
@@ -309,23 +432,86 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
             >
               {step === 0 && (
                 <>
-                  <button
-                    type="button"
-                    disabled
-                    className="flex w-full items-center gap-3 rounded-2xl border border-dashed border-sky-200 bg-sky-50/50 p-3 text-left opacity-70"
-                  >
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
-                      <Sparkles className="size-4" />
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        Importeren van boekingssite
+                  {!isEdit && (
+                    <div className="space-y-3 rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50/90 to-indigo-50/40 p-3.5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-600">
+                          {importing ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-4" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold">
+                            Importeren van boekingssite
+                          </div>
+                          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                            Plak een Airbnb-, Booking.com- of andere
+                            advertentielink. AI vult de velden in — je kunt
+                            alles daarna nog aanpassen.
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Binnenkort — plak Airbnb/Booking-URL
+                      <div className="flex gap-2">
+                        <Input
+                          className="h-11 bg-white/80"
+                          value={importUrl}
+                          disabled={importing}
+                          onChange={(e) => {
+                            setImportUrl(e.target.value);
+                            setImportError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              void handleImportListing();
+                            }
+                          }}
+                          placeholder="https://www.airbnb.com/…"
+                        />
+                        <Button
+                          type="button"
+                          className="h-11 shrink-0 bg-sky-600 text-white hover:bg-sky-700"
+                          disabled={importing || !importUrl.trim()}
+                          onClick={() => void handleImportListing()}
+                        >
+                          {importing ? (
+                            <>
+                              <Loader2 className="animate-spin" />
+                              Bezig…
+                            </>
+                          ) : (
+                            "Importeren"
+                          )}
+                        </Button>
                       </div>
+                      {importing && (
+                        <p className="text-xs text-sky-700">
+                          Pagina ophalen en gegevens uitlezen… Dit kan even
+                          duren.
+                        </p>
+                      )}
+                      {importError && (
+                        <p className="rounded-xl bg-rose-50 px-3 py-2 text-xs leading-relaxed text-rose-700 ring-1 ring-rose-100">
+                          {importError}
+                        </p>
+                      )}
+                      {importDisclaimer && !importError && (
+                        <div className="flex gap-2 rounded-xl bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900 ring-1 ring-amber-100">
+                          <Info className="mt-0.5 size-3.5 shrink-0" />
+                          <span>
+                            Controleer de ingevulde gegevens — prijzen,
+                            afstanden en skigebied zijn schattingen op basis van
+                            de advertentie.
+                          </span>
+                        </div>
+                      )}
+                      <p className="text-center text-[11px] text-muted-foreground">
+                        Of vul hieronder handmatig in
+                      </p>
                     </div>
-                  </button>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Naam *</Label>
@@ -568,6 +754,97 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                         </p>
                       )}
                   </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Nabije skiliften</Label>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            nearbyLifts: [
+                              ...f.nearbyLifts,
+                              { name: "", km: 0 },
+                            ],
+                          }))
+                        }
+                      >
+                        <Plus />
+                        Toevoegen
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Optioneel — namen en afstanden vanaf de accommodatie
+                      (komen terug in het AI-skioverzicht).
+                    </p>
+                    <div className="space-y-2">
+                      {form.nearbyLifts.map((lift, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <Input
+                            className="h-10 flex-1"
+                            value={lift.name}
+                            placeholder="Lift / station"
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                nearbyLifts: f.nearbyLifts.map((l, i) =>
+                                  i === index
+                                    ? { ...l, name: e.target.value }
+                                    : l
+                                ),
+                              }))
+                            }
+                          />
+                          <Input
+                            className="h-10 w-24"
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={Number.isFinite(lift.km) ? lift.km : ""}
+                            placeholder="km"
+                            onChange={(e) =>
+                              setForm((f) => ({
+                                ...f,
+                                nearbyLifts: f.nearbyLifts.map((l, i) =>
+                                  i === index
+                                    ? {
+                                        ...l,
+                                        km: Math.max(
+                                          0,
+                                          Number(e.target.value) || 0
+                                        ),
+                                      }
+                                    : l
+                                ),
+                              }))
+                            }
+                          />
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                nearbyLifts: f.nearbyLifts.filter(
+                                  (_, i) => i !== index
+                                ),
+                              }))
+                            }
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ))}
+                      {form.nearbyLifts.length === 0 && (
+                        <p className="text-sm text-muted-foreground">
+                          Nog geen liften toegevoegd.
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </>
               )}
 
@@ -671,7 +948,12 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                                   alt=""
                                   fill
                                   className="object-cover"
-                                  unoptimized={img.blobUrl.startsWith("/")}
+                                  unoptimized={shouldUnoptimizeImage(
+                                    img.blobUrl
+                                  )}
+                                  referrerPolicy={imageReferrerPolicy(
+                                    img.blobUrl
+                                  )}
                                 />
                                 <button
                                   type="button"
@@ -726,7 +1008,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
           {step < STEPS.length - 1 ? (
             <Button
               className="h-11 flex-1 bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
-              disabled={!canNext || deleting}
+              disabled={!canNext || deleting || importing}
               onClick={() => setStep((s) => s + 1)}
             >
               Verder

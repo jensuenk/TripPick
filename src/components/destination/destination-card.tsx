@@ -15,7 +15,7 @@ import type { ApiDestination } from "@/lib/trip-data";
 import { ReactionBar } from "@/components/destination/reaction-bar";
 import { CommentThread } from "@/components/destination/comment-thread";
 import { formatKm, formatPrice, getLiftAccess } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
 type Props = {
@@ -70,7 +70,8 @@ export function DestinationCard({
             fill
             className="object-cover"
             sizes="(max-width:768px) 100vw, 400px"
-            unoptimized={current.blobUrl.startsWith("/")}
+            unoptimized={shouldUnoptimizeImage(current.blobUrl)}
+            referrerPolicy={imageReferrerPolicy(current.blobUrl)}
           />
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-sky-400">

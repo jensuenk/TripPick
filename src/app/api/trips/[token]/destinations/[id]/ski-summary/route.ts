@@ -52,6 +52,8 @@ export async function POST(request: Request, { params }: Params) {
     const summary = await generateSkiResortSummary({
       skiArea,
       locationText: dest.locationText,
+      kmToLift: details.kmToLift ?? null,
+      nearbyLifts: details.nearbyLifts ?? null,
     });
     const generatedAt = new Date().toISOString();
 

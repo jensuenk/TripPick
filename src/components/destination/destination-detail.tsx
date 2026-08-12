@@ -22,7 +22,7 @@ import {
   getLiftAccess,
 } from "@/lib/format";
 import type { ApiDestination } from "@/lib/trip-data";
-import { cn } from "@/lib/utils";
+import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import {
   Bath,
   BedDouble,
@@ -61,6 +61,9 @@ export function DestinationDetail({
   const price = formatPrice(destination.priceTotalCents);
   const skiArea = destination.typeDetails?.skiArea;
   const lift = getLiftAccess(destination.typeDetails);
+  const nearbyLifts = Array.isArray(destination.typeDetails?.nearbyLifts)
+    ? destination.typeDetails.nearbyLifts
+    : [];
   const creator = trip.members.find(
     (m) => m.id === destination.createdByMemberId,
   );
@@ -76,11 +79,11 @@ export function DestinationDetail({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="flex max-h-[94dvh] max-w-2xl flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:max-w-2xl">
-          <div className="relative max-h-[40vh] overflow-hidden bg-gradient-to-br from-sky-100 to-indigo-100">
+          <div className="relative h-48 w-full shrink-0 overflow-hidden bg-gradient-to-br from-sky-100 to-indigo-100 sm:h-56">
             {photos[0] ? (
               <button
                 type="button"
-                className="relative block aspect-[16/10] w-full"
+                className="absolute inset-0 block"
                 onClick={() => setLightbox(photos[0].blobUrl)}
               >
                 <Image
@@ -88,15 +91,16 @@ export function DestinationDetail({
                   alt={destination.name}
                   fill
                   className="object-cover"
-                  unoptimized={photos[0].blobUrl.startsWith("/")}
+                  unoptimized={shouldUnoptimizeImage(photos[0].blobUrl)}
+                  referrerPolicy={imageReferrerPolicy(photos[0].blobUrl)}
                 />
               </button>
             ) : (
-              <div className="flex aspect-[16/10] items-center justify-center text-sky-400">
+              <div className="flex h-full items-center justify-center text-sky-400">
                 <Mountain className="size-12" />
               </div>
             )}
-            <DialogHeader className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-4 pt-16 text-left">
+            <DialogHeader className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-4 pt-12 text-left">
               <div className="flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <DialogTitle className="text-xl leading-tight text-white drop-shadow">
@@ -120,7 +124,7 @@ export function DestinationDetail({
             </DialogHeader>
           </div>
 
-          <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <div className="flex items-center gap-3">
               {creator && (
                 <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
@@ -213,6 +217,27 @@ export function DestinationDetail({
               })}
             </div>
 
+            {nearbyLifts.length > 0 && (
+              <div className="rounded-2xl bg-muted/40 px-3.5 py-3">
+                <div className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Nabije skiliften
+                </div>
+                <ul className="space-y-1 text-sm">
+                  {nearbyLifts.map((l, i) => (
+                    <li
+                      key={`${l.name}-${i}`}
+                      className="flex items-center justify-between gap-3"
+                    >
+                      <span>{l.name}</span>
+                      <span className="shrink-0 text-muted-foreground">
+                        {formatKm(l.km)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {destination.description && (
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
                 {destination.description}
@@ -274,7 +299,8 @@ export function DestinationDetail({
                         alt=""
                         fill
                         className="object-cover"
-                        unoptimized={img.blobUrl.startsWith("/")}
+                        unoptimized={shouldUnoptimizeImage(img.blobUrl)}
+                        referrerPolicy={imageReferrerPolicy(img.blobUrl)}
                       />
                     </button>
                   ))}
@@ -310,7 +336,8 @@ export function DestinationDetail({
                           alt="Skikaart"
                           fill
                           className="object-contain bg-white"
-                          unoptimized={img.blobUrl.startsWith("/")}
+                          unoptimized={shouldUnoptimizeImage(img.blobUrl)}
+                          referrerPolicy={imageReferrerPolicy(img.blobUrl)}
                         />
                       </button>
                     ))}
@@ -377,6 +404,7 @@ export function DestinationDetail({
             src={lightbox}
             alt=""
             className={cn("max-h-full max-w-full object-contain")}
+            referrerPolicy={imageReferrerPolicy(lightbox)}
             onClick={(e) => e.stopPropagation()}
           />
         </div>
