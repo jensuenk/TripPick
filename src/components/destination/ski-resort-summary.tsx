@@ -21,7 +21,6 @@ export function SkiResortSummary({ destination }: Props) {
   const requestKey = [
     destination.id,
     skiArea,
-    destination.typeDetails?.kmToLift ?? "",
     JSON.stringify(destination.typeDetails?.nearbyLifts ?? []),
     SKI_SUMMARY_VERSION,
   ].join(":");

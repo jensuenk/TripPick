@@ -1,6 +1,6 @@
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { nl } from "date-fns/locale";
-import type { BedConfig } from "@/db/schema";
+import type { BedConfig, NearbyLift } from "@/db/schema";
 import { BED_TYPES } from "@/lib/trip-types";
 
 /** Average mountain-road drive speed used to estimate lift access time */
@@ -19,16 +19,29 @@ export function formatKm(km: number | null | undefined): string | null {
   return `${rounded} km`;
 }
 
+/** Smallest km among named nearby lifts. */
+export function nearestLiftKm(
+  lifts: NearbyLift[] | null | undefined,
+): number | null {
+  const valid = (lifts ?? []).filter(
+    (l) => l.name.trim().length > 0 && Number.isFinite(l.km) && l.km >= 0,
+  );
+  if (!valid.length) return null;
+  return Math.min(...valid.map((l) => l.km));
+}
+
 export function getLiftAccess(
   typeDetails:
     | {
         kmToLift?: number;
         minutesToLift?: number;
+        nearbyLifts?: NearbyLift[];
       }
     | null
     | undefined,
 ) {
-  const km = typeDetails?.kmToLift;
+  const fromNearby = nearestLiftKm(typeDetails?.nearbyLifts);
+  const km = fromNearby ?? typeDetails?.kmToLift ?? null;
   if (km != null) {
     return {
       km,

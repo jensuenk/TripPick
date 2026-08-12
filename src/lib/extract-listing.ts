@@ -18,7 +18,6 @@ export const extractedListingSchema = z.object({
   pros: z.array(z.string().max(200)).default([]),
   cons: z.array(z.string().max(200)).default([]),
   skiArea: z.string().max(200).nullable().optional(),
-  kmToLift: z.number().min(0).max(500).nullable().optional(),
   nearbyLifts: z
     .array(
       z.object({
@@ -61,12 +60,12 @@ export async function extractListingWithAi(input: {
           content: [
             "Je extraheert vakantieverblijf-gegevens uit een boekingspagina voor een skireis-planner.",
             "Antwoord ALLEEN met geldige JSON volgens dit schema:",
-            '{ "name": string, "locationText": string|null, "priceTotalEuros": number|null, "bedrooms": number|null, "bathrooms": number|null, "beds": [{"type":"double"|"single"|"bunk"|"sofa","count":number}], "description": string|null, "pros": string[], "cons": string[], "skiArea": string|null, "kmToLift": number|null, "nearbyLifts": [{"name":string,"km":number}] }',
+            '{ "name": string, "locationText": string|null, "priceTotalEuros": number|null, "bedrooms": number|null, "bathrooms": number|null, "beds": [{"type":"double"|"single"|"bunk"|"sofa","count":number}], "description": string|null, "pros": string[], "cons": string[], "skiArea": string|null, "nearbyLifts": [{"name":string,"km":number}] }',
             "Schrijf description/pros/cons in het Nederlands.",
             "priceTotalEuros = totale prijs voor het verblijf in euro (niet per nacht), of null als onbekend.",
             "skiArea = dichtstbijzijnde/passende skigebied-naam indien af te leiden uit locatie/tekst.",
-            "kmToLift = geschatte rijafstand in km tot de dichtstbijzijnde skilift (schatting ok), of null.",
             "nearbyLifts = 1–4 nabije skiliften/stationen met geschatte afstand in km vanaf de accommodatie.",
+            "Belangrijk: liftnamen (nearbyLifts.name) NOOIT vertalen — gebruik de officiële lokale naam (DE/FR/IT/…), bv. 'Bergbahn Kappl' niet 'Kabelbaan Kappl'.",
             "beds: map naar double/single/bunk/sofa.",
             "Verzin geen exacte cijfers als die nergens te vinden zijn — gebruik null of weglaten.",
             "Negeer foto's — die worden apart toegevoegd.",

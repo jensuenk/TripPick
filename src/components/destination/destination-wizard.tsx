@@ -1,7 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Image from "next/image";
+import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
+import { useTrip } from "@/components/trip/trip-context";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import type { BedConfig, NearbyLift } from "@/db/schema";
+import {
+  bedTypeMeta,
+  centsToEuros,
+  estimateDriveMinutes,
+  eurosToCents,
+  LIFT_DRIVE_KMH,
+  nearestLiftKm,
+} from "@/lib/format";
+import { geocodeLocation } from "@/lib/geocoding";
+import type { ApiDestination } from "@/lib/trip-data";
+import { BED_TYPES, IMAGE_CATEGORIES, type ImageCategory } from "@/lib/trip-types";
+import { uploadImage } from "@/lib/upload";
+import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -15,32 +39,9 @@ import {
   Upload,
   X,
 } from "lucide-react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
-import { useTrip } from "@/components/trip/trip-context";
-import type { ApiDestination } from "@/lib/trip-data";
-import type { BedConfig, NearbyLift } from "@/db/schema";
-import { BED_TYPES, IMAGE_CATEGORIES, type ImageCategory } from "@/lib/trip-types";
-import { geocodeLocation } from "@/lib/geocoding";
-import { uploadImage } from "@/lib/upload";
-import {
-  bedTypeMeta,
-  centsToEuros,
-  estimateDriveMinutes,
-  eurosToCents,
-  LIFT_DRIVE_KMH,
-} from "@/lib/format";
-import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 
 type ImageDraft = {
   blobUrl: string;
@@ -60,7 +61,6 @@ type FormState = {
   bathrooms: string;
   beds: BedConfig[];
   skiArea: string;
-  kmToLift: string;
   nearbyLifts: NearbyLift[];
   description: string;
   pros: string[];
@@ -81,10 +81,6 @@ function fromDestination(d?: ApiDestination | null): FormState {
     bathrooms: d?.bathrooms != null ? String(d.bathrooms) : "",
     beds: d?.beds?.length ? d.beds : [],
     skiArea: d?.typeDetails?.skiArea ?? "",
-    kmToLift:
-      d?.typeDetails?.kmToLift != null
-        ? String(d.typeDetails.kmToLift)
-        : "",
     nearbyLifts: Array.isArray(d?.typeDetails?.nearbyLifts)
       ? (d!.typeDetails.nearbyLifts as NearbyLift[])
       : [],
@@ -94,7 +90,10 @@ function fromDestination(d?: ApiDestination | null): FormState {
     images:
       d?.images.map((img, i) => ({
         blobUrl: img.blobUrl,
-        category: img.category as ImageCategory,
+        category:
+          img.category === "surroundings"
+            ? ("accommodation" as ImageCategory)
+            : (img.category as ImageCategory),
         sortOrder: img.sortOrder ?? i,
         localId: img.id,
       })) ?? [],
@@ -186,25 +185,25 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
 
       const importedImages: ImageDraft[] = Array.isArray(data.imageUrls)
         ? data.imageUrls
-            .filter((u: unknown): u is string => typeof u === "string")
-            .map((blobUrl: string, index: number) => ({
-              blobUrl,
-              category: "accommodation" as ImageCategory,
-              sortOrder: index,
-              localId: crypto.randomUUID(),
-            }))
+          .filter((u: unknown): u is string => typeof u === "string")
+          .map((blobUrl: string, index: number) => ({
+            blobUrl,
+            category: "accommodation" as ImageCategory,
+            sortOrder: index,
+            localId: crypto.randomUUID(),
+          }))
         : [];
 
       const nearbyLifts: NearbyLift[] = Array.isArray(data.nearbyLifts)
         ? data.nearbyLifts
-            .filter(
-              (l: { name?: unknown; km?: unknown }) =>
-                typeof l?.name === "string" && typeof l?.km === "number"
-            )
-            .map((l: { name: string; km: number }) => ({
-              name: l.name,
-              km: l.km,
-            }))
+          .filter(
+            (l: { name?: unknown; km?: unknown }) =>
+              typeof l?.name === "string" && typeof l?.km === "number"
+          )
+          .map((l: { name: string; km: number }) => ({
+            name: l.name,
+            km: l.km,
+          }))
         : [];
 
       const locationText =
@@ -233,10 +232,6 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
           typeof data.skiArea === "string" && data.skiArea
             ? data.skiArea
             : f.skiArea,
-        kmToLift:
-          typeof data.kmToLift === "number"
-            ? String(data.kmToLift)
-            : f.kmToLift,
         nearbyLifts: nearbyLifts.length ? nearbyLifts : f.nearbyLifts,
         description:
           typeof data.description === "string" && data.description
@@ -316,10 +311,11 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         cons: form.cons,
         typeDetails: {
           skiArea: form.skiArea || undefined,
-          kmToLift: form.kmToLift ? Number(form.kmToLift) : undefined,
           nearbyLifts: form.nearbyLifts.filter(
             (l) => l.name.trim() && Number.isFinite(l.km)
           ),
+          // Derived from the nearest entry in nearbyLifts (for cards / legacy)
+          kmToLift: nearestLiftKm(form.nearbyLifts) ?? undefined,
         },
         images: form.images.map((img, index) => ({
           blobUrl: img.blobUrl,
@@ -652,10 +648,10 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                                   beds: f.beds.map((b, i) =>
                                     i === index
                                       ? {
-                                          ...b,
-                                          type: e.target
-                                            .value as BedConfig["type"],
-                                        }
+                                        ...b,
+                                        type: e.target
+                                          .value as BedConfig["type"],
+                                      }
                                       : b
                                   ),
                                 }))
@@ -679,12 +675,12 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                                   beds: f.beds.map((b, i) =>
                                     i === index
                                       ? {
-                                          ...b,
-                                          count: Math.max(
-                                            1,
-                                            Number(e.target.value) || 1
-                                          ),
-                                        }
+                                        ...b,
+                                        count: Math.max(
+                                          1,
+                                          Number(e.target.value) || 1
+                                        ),
+                                      }
                                       : b
                                   ),
                                 }))
@@ -730,31 +726,6 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Afstand tot dichtstbijzijnde lift (km)</Label>
-                    <Input
-                      className="h-11"
-                      type="number"
-                      min={0}
-                      step="0.1"
-                      value={form.kmToLift}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          kmToLift: e.target.value,
-                        }))
-                      }
-                      placeholder="1.5"
-                    />
-                    {form.kmToLift &&
-                      estimateDriveMinutes(Number(form.kmToLift)) != null && (
-                        <p className="text-xs text-muted-foreground">
-                          Geschatte rijtijd: ~
-                          {estimateDriveMinutes(Number(form.kmToLift))} min
-                          (gem. {LIFT_DRIVE_KMH} km/u op bergwegen)
-                        </p>
-                      )}
-                  </div>
-                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label>Nabije skiliften</Label>
                       <Button
@@ -775,10 +746,6 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                         Toevoegen
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Optioneel — namen en afstanden vanaf de accommodatie
-                      (komen terug in het AI-skioverzicht).
-                    </p>
                     <div className="space-y-2">
                       {form.nearbyLifts.map((lift, index) => (
                         <div key={index} className="flex items-center gap-2">
@@ -797,30 +764,35 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                               }))
                             }
                           />
-                          <Input
-                            className="h-10 w-24"
-                            type="number"
-                            min={0}
-                            step="0.1"
-                            value={Number.isFinite(lift.km) ? lift.km : ""}
-                            placeholder="km"
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                nearbyLifts: f.nearbyLifts.map((l, i) =>
-                                  i === index
-                                    ? {
+                          <div className="relative w-28 shrink-0">
+                            <Input
+                              className="h-10 pr-9"
+                              type="number"
+                              min={0}
+                              step="0.1"
+                              value={Number.isFinite(lift.km) ? lift.km : ""}
+                              placeholder="0"
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  nearbyLifts: f.nearbyLifts.map((l, i) =>
+                                    i === index
+                                      ? {
                                         ...l,
                                         km: Math.max(
                                           0,
                                           Number(e.target.value) || 0
                                         ),
                                       }
-                                    : l
-                                ),
-                              }))
-                            }
-                          />
+                                      : l
+                                  ),
+                                }))
+                              }
+                            />
+                            <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-muted-foreground">
+                              km
+                            </span>
+                          </div>
                           <Button
                             type="button"
                             size="icon"
@@ -844,6 +816,17 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                         </p>
                       )}
                     </div>
+                    {nearestLiftKm(form.nearbyLifts) != null &&
+                      estimateDriveMinutes(nearestLiftKm(form.nearbyLifts)) !=
+                      null && (
+                        <p className="text-xs text-muted-foreground">
+                          Dichtstbijzijnde lift:{" "}
+                          {nearestLiftKm(form.nearbyLifts)} km · geschatte
+                          rijtijd ~{" "}
+                          {estimateDriveMinutes(nearestLiftKm(form.nearbyLifts))}{" "}
+                          min (gem. {LIFT_DRIVE_KMH} km/u op bergwegen)
+                        </p>
+                      )}
                   </div>
                 </>
               )}

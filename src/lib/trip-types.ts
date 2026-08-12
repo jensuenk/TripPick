@@ -71,12 +71,7 @@ export const IMAGE_CATEGORIES = [
   {
     id: "accommodation" as const,
     label: "Accommodatie",
-    hint: "Kamers, keuken, badkamers",
-  },
-  {
-    id: "surroundings" as const,
-    label: "Omgeving",
-    hint: "Dorp, bergzicht",
+    hint: "Kamers, keuken, badkamers, omgeving",
   },
   {
     id: "skimap" as const,

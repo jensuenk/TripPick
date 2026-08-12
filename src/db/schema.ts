@@ -25,11 +25,11 @@ export type NearbyLift = {
 
 export type SkiTypeDetails = {
   skiArea?: string;
-  /** Distance to nearest lift in kilometers */
+  /** Distance to nearest lift in kilometers (derived from nearbyLifts when saving) */
   kmToLift?: number;
   /** Nearby ski lifts/stations with distance from the house */
   nearbyLifts?: NearbyLift[];
-  /** @deprecated Prefer kmToLift; kept for older records */
+  /** @deprecated Prefer kmToLift / nearbyLifts; kept for older records */
   minutesToLift?: number;
   /** AI-written overview of the ski area */
   skiResortSummary?: string;

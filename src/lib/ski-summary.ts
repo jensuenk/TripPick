@@ -1,7 +1,8 @@
 import type { DestinationTypeDetails, NearbyLift } from "@/db/schema";
+import { nearestLiftKm } from "@/lib/format";
 
 /** Bump when the summary prompt changes so old caches refresh. */
-export const SKI_SUMMARY_VERSION = 4;
+export const SKI_SUMMARY_VERSION = 5;
 
 function formatNearbyLifts(lifts?: NearbyLift[] | null): string {
   if (!lifts?.length) return "";
@@ -11,14 +12,13 @@ function formatNearbyLifts(lifts?: NearbyLift[] | null): string {
     .map((l) => `${l.name.trim()} (~${l.km} km)`)
     .join("; ");
   return list
-    ? ` Nabije skiliften vanaf de accommodatie: ${list}. Verwerk deze afstanden natuurlijk in de samenvatting.`
+    ? ` Nabije skiliften vanaf de accommodatie (gebruik deze officiële namen exact, niet vertalen): ${list}. Verwerk deze afstanden natuurlijk in de samenvatting.`
     : "";
 }
 
 export async function generateSkiResortSummary(input: {
   skiArea: string;
   locationText?: string | null;
-  kmToLift?: number | null;
   nearbyLifts?: NearbyLift[] | null;
 }): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -31,9 +31,10 @@ export async function generateSkiResortSummary(input: {
   const locationHint = input.locationText
     ? ` Context van nabijgelegen dorp/locatie: ${input.locationText}.`
     : "";
+  const nearest = nearestLiftKm(input.nearbyLifts);
   const nearestHint =
-    input.kmToLift != null && Number.isFinite(input.kmToLift)
-      ? ` Dichtstbijzijnde lift ongeveer ${input.kmToLift} km vanaf de accommodatie.`
+    nearest != null
+      ? ` Dichtstbijzijnde lift ongeveer ${nearest} km vanaf de accommodatie.`
       : "";
   const liftsHint = formatNearbyLifts(input.nearbyLifts);
 
@@ -55,6 +56,7 @@ export async function generateSkiResortSummary(input: {
             "Schrijf in het Nederlands (nl-BE/nl-NL), 1 kort alinea van ongeveer 60–95 woorden. Geen opsommingen.",
             "Focus op: gebiedsgrootte (piste-km indien bekend), hoogte/hoogtebereik, soort pistes (beginner/gevorderd/expert), drukte/populariteit, en snow/fun parks als die opvallend zijn.",
             "Als er info is over nabije skiliften en afstanden vanaf de accommodatie, noem die kort en natuurlijk in dezelfde alinea.",
+            "Liftnamen NOOIT vertalen — behoud de officiële lokale naam exact zoals gegeven.",
             "Sla andere activiteiten over (spa, winkelen, wandelen, nachtleven, enz.).",
             "Als een feit onzeker is, zeg dat kort of laat het weg — verzin geen precieze cijfers.",
             "Vermeld niet dat je een AI bent. Houd het kort.",
@@ -104,11 +106,10 @@ export function mergeTypeDetails(
     next.skiArea &&
     prev.skiArea.trim().toLowerCase() === next.skiArea.trim().toLowerCase();
 
-  const sameNearest = prev.kmToLift === next.kmToLift;
   const sameLifts = nearbyLiftsKey(prev) === nearbyLiftsKey(next);
   const sameVersion = prev.skiResortSummaryVersion === SKI_SUMMARY_VERSION;
 
-  if (sameArea && sameNearest && sameLifts && sameVersion && prev.skiResortSummary) {
+  if (sameArea && sameLifts && sameVersion && prev.skiResortSummary) {
     next.skiResortSummary = prev.skiResortSummary;
     next.skiResortSummaryGeneratedAt = prev.skiResortSummaryGeneratedAt;
     next.skiResortSummaryVersion = prev.skiResortSummaryVersion;

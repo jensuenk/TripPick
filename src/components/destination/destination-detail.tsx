@@ -26,6 +26,8 @@ import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import {
   Bath,
   BedDouble,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   MapPin,
   Mountain,
@@ -35,7 +37,7 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   destination: ApiDestination | null;
@@ -52,6 +54,12 @@ export function DestinationDetail({
 }: Props) {
   const { trip } = useTrip();
   const [lightbox, setLightbox] = useState<string | null>(null);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+
+  useEffect(() => {
+    setGalleryIndex(0);
+  }, [destination?.id, open]);
+
   if (!destination) return null;
 
   const photos = destination.images
@@ -67,6 +75,20 @@ export function DestinationDetail({
   const creator = trip.members.find(
     (m) => m.id === destination.createdByMemberId,
   );
+
+  const safeGalleryIndex =
+    photos.length > 0 ? Math.min(galleryIndex, photos.length - 1) : 0;
+  const galleryPhoto = photos[safeGalleryIndex] ?? null;
+
+  function showPrevPhoto() {
+    if (photos.length < 2) return;
+    setGalleryIndex((i) => (i - 1 + photos.length) % photos.length);
+  }
+
+  function showNextPhoto() {
+    if (photos.length < 2) return;
+    setGalleryIndex((i) => (i + 1) % photos.length);
+  }
 
   const byKind = {
     favorite: destination.reactions.filter((r) => r.kind === "favorite"),
@@ -283,27 +305,74 @@ export function DestinationDetail({
               </div>
             )}
 
-            {photos.length > 1 && (
+            {photos.length > 1 && galleryPhoto && (
               <div>
                 <div className="mb-2 text-sm font-semibold">Galerij</div>
-                <div className="grid grid-cols-3 gap-2">
-                  {photos.map((img) => (
+                <div className="space-y-2">
+                  <div className="relative overflow-hidden rounded-2xl bg-muted">
                     <button
-                      key={img.id}
                       type="button"
-                      className="relative aspect-square overflow-hidden rounded-xl"
-                      onClick={() => setLightbox(img.blobUrl)}
+                      className="relative block aspect-[16/10] w-full"
+                      onClick={() => setLightbox(galleryPhoto.blobUrl)}
                     >
                       <Image
-                        src={img.blobUrl}
+                        src={galleryPhoto.blobUrl}
                         alt=""
                         fill
                         className="object-cover"
-                        unoptimized={shouldUnoptimizeImage(img.blobUrl)}
-                        referrerPolicy={imageReferrerPolicy(img.blobUrl)}
+                        unoptimized={shouldUnoptimizeImage(
+                          galleryPhoto.blobUrl
+                        )}
+                        referrerPolicy={imageReferrerPolicy(
+                          galleryPhoto.blobUrl
+                        )}
                       />
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      aria-label="Vorige foto"
+                      className="absolute top-1/2 left-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm hover:bg-black/60"
+                      onClick={showPrevPhoto}
+                    >
+                      <ChevronLeft className="size-5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Volgende foto"
+                      className="absolute top-1/2 right-2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur-sm hover:bg-black/60"
+                      onClick={showNextPhoto}
+                    >
+                      <ChevronRight className="size-5" />
+                    </button>
+                    <div className="pointer-events-none absolute right-3 bottom-3 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white">
+                      {safeGalleryIndex + 1} / {photos.length}
+                    </div>
+                  </div>
+                  <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+                    {photos.map((img, index) => (
+                      <button
+                        key={img.id}
+                        type="button"
+                        aria-label={`Foto ${index + 1}`}
+                        className={cn(
+                          "relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 transition",
+                          index === safeGalleryIndex
+                            ? "ring-sky-500"
+                            : "ring-transparent opacity-80 hover:opacity-100"
+                        )}
+                        onClick={() => setGalleryIndex(index)}
+                      >
+                        <Image
+                          src={img.blobUrl}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          unoptimized={shouldUnoptimizeImage(img.blobUrl)}
+                          referrerPolicy={imageReferrerPolicy(img.blobUrl)}
+                        />
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
