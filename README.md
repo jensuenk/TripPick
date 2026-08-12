@@ -31,6 +31,7 @@ cp .env.example .env.local
 | `DATABASE_URL` | Yes | Neon connection string |
 | `BLOB_READ_WRITE_TOKEN` | Prod | From Vercel Blob store |
 | `NEXT_PUBLIC_USE_BLOB` | Prod | Set `true` when using Blob client uploads |
+| `OPENAI_API_KEY` | For AI summaries | Enables ski resort overviews on destination detail |
 
 ### 3. Database
 

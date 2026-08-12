@@ -48,7 +48,11 @@ export const destinationPayloadSchema = z.object({
   typeDetails: z
     .object({
       skiArea: z.string().trim().max(200).optional(),
+      kmToLift: z.number().min(0).max(500).optional(),
       minutesToLift: z.number().int().min(0).max(600).optional(),
+      skiResortSummary: z.string().max(4000).optional(),
+      skiResortSummaryGeneratedAt: z.string().optional(),
+      skiResortSummaryVersion: z.number().int().optional(),
     })
     .passthrough()
     .default({}),

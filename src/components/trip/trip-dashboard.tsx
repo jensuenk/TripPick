@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   CalendarDays,
@@ -20,7 +19,7 @@ import { TripContext } from "@/components/trip/trip-context";
 import { DestinationCard } from "@/components/destination/destination-card";
 import { DestinationWizard } from "@/components/destination/destination-wizard";
 import { DestinationDetail } from "@/components/destination/destination-detail";
-import type { ApiMember, ApiTrip } from "@/lib/trip-data";
+import type { ApiDestination, ApiMember, ApiTrip } from "@/lib/trip-data";
 import {
   getStoredMemberId,
   setStoredMemberId,
@@ -32,8 +31,33 @@ type Props = {
   initialDestinationId?: string | null;
 };
 
+function syncTripUrl(token: string, destinationId: string | null) {
+  const path = destinationId
+    ? `/trip/${token}/d/${destinationId}`
+    : `/trip/${token}`;
+  if (typeof window === "undefined") return;
+  if (window.location.pathname === path) return;
+  window.history.replaceState(window.history.state, "", path);
+}
+
+/** Destination with the most ❤️ favorites (ties broken by likes, then earliest). */
+function getWinnerId(destinations: ApiTrip["destinations"]): string | null {
+  if (destinations.length === 0) return null;
+  const ranked = [...destinations].sort((a, b) => {
+    if (b.counts.favorite !== a.counts.favorite) {
+      return b.counts.favorite - a.counts.favorite;
+    }
+    if (b.counts.like !== a.counts.like) {
+      return b.counts.like - a.counts.like;
+    }
+    return a.createdAt.localeCompare(b.createdAt);
+  });
+  const top = ranked[0];
+  if (!top || top.counts.favorite < 1) return null;
+  return top.id;
+}
+
 export function TripDashboard({ token, initialDestinationId }: Props) {
-  const router = useRouter();
   const [trip, setTrip] = useState<ApiTrip | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentMember, setCurrentMemberState] = useState<ApiMember | null>(
@@ -41,9 +65,7 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [editing, setEditing] = useState<ApiTrip["destinations"][number] | null>(
-    null
-  );
+  const [editing, setEditing] = useState<ApiDestination | null>(null);
   const [detailId, setDetailId] = useState<string | null>(
     initialDestinationId ?? null
   );
@@ -80,6 +102,18 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
     };
   }, [refresh, token]);
 
+  // Browser back/forward without remounting
+  useEffect(() => {
+    function onPopState() {
+      const match = window.location.pathname.match(
+        /\/trip\/[^/]+\/d\/([^/]+)/
+      );
+      setDetailId(match?.[1] ?? null);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   function setCurrentMember(member: ApiMember | null) {
     setCurrentMemberState(member);
     if (member) {
@@ -88,8 +122,27 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
     }
   }
 
+  function openDetail(id: string) {
+    setDetailId(id);
+    syncTripUrl(token, id);
+  }
+
+  function closeDetail() {
+    setDetailId(null);
+    syncTripUrl(token, null);
+  }
+
+  function openEdit(destination: ApiDestination) {
+    setEditing(destination);
+    setDetailId(null);
+    syncTripUrl(token, null);
+    // Open wizard on next tick so detail dialog can close cleanly first
+    requestAnimationFrame(() => setWizardOpen(true));
+  }
+
   const detail =
     trip?.destinations.find((d) => d.id === detailId) ?? null;
+  const winnerId = trip ? getWinnerId(trip.destinations) : null;
 
   if (loading) {
     return (
@@ -232,12 +285,8 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
                 >
                   <DestinationCard
                     destination={dest}
-                    onOpen={() => {
-                      setDetailId(dest.id);
-                      router.replace(`/trip/${token}/d/${dest.id}`, {
-                        scroll: false,
-                      });
-                    }}
+                    isWinner={dest.id === winnerId}
+                    onOpen={() => openDetail(dest.id)}
                   />
                 </motion.div>
               ))}
@@ -274,7 +323,10 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
 
         <DestinationWizard
           open={wizardOpen}
-          onOpenChange={setWizardOpen}
+          onOpenChange={(open) => {
+            setWizardOpen(open);
+            if (!open) setEditing(null);
+          }}
           destination={editing}
         />
 
@@ -282,17 +334,11 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
           destination={detail}
           open={Boolean(detail)}
           onOpenChange={(open) => {
-            if (!open) {
-              setDetailId(null);
-              router.replace(`/trip/${token}`, { scroll: false });
-            }
+            if (!open) closeDetail();
           }}
           onEdit={() => {
             if (!detail) return;
-            setEditing(detail);
-            setDetailId(null);
-            router.replace(`/trip/${token}`, { scroll: false });
-            setWizardOpen(true);
+            openEdit(detail);
           }}
         />
       </main>

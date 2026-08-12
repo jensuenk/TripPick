@@ -20,19 +20,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StarRating } from "@/components/shared/star-rating";
 import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
 import { useTrip } from "@/components/trip/trip-context";
 import type { ApiDestination } from "@/lib/trip-data";
@@ -40,7 +32,13 @@ import type { BedConfig } from "@/db/schema";
 import { BED_TYPES, IMAGE_CATEGORIES, type ImageCategory } from "@/lib/trip-types";
 import { geocodeLocation } from "@/lib/geocoding";
 import { uploadImage } from "@/lib/upload";
-import { centsToEuros, eurosToCents } from "@/lib/format";
+import {
+  bedTypeMeta,
+  centsToEuros,
+  estimateDriveMinutes,
+  eurosToCents,
+  LIFT_DRIVE_KMH,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type ImageDraft = {
@@ -57,12 +55,11 @@ type FormState = {
   lng: number | null;
   bookingUrl: string;
   priceEuros: string;
-  stars: number | null;
   bedrooms: string;
   bathrooms: string;
   beds: BedConfig[];
   skiArea: string;
-  minutesToLift: string;
+  kmToLift: string;
   description: string;
   pros: string[];
   cons: string[];
@@ -78,14 +75,13 @@ function fromDestination(d?: ApiDestination | null): FormState {
     bookingUrl: d?.bookingUrl ?? "",
     priceEuros:
       d?.priceTotalCents != null ? String(centsToEuros(d.priceTotalCents)) : "",
-    stars: d?.stars ?? null,
     bedrooms: d?.bedrooms != null ? String(d.bedrooms) : "",
     bathrooms: d?.bathrooms != null ? String(d.bathrooms) : "",
     beds: d?.beds?.length ? d.beds : [],
     skiArea: d?.typeDetails?.skiArea ?? "",
-    minutesToLift:
-      d?.typeDetails?.minutesToLift != null
-        ? String(d.typeDetails.minutesToLift)
+    kmToLift:
+      d?.typeDetails?.kmToLift != null
+        ? String(d.typeDetails.kmToLift)
         : "",
     description: d?.description ?? "",
     pros: d?.pros ?? [],
@@ -195,12 +191,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         description: form.description || null,
         pros: form.pros,
         cons: form.cons,
-        stars: form.stars,
         typeDetails: {
           skiArea: form.skiArea || undefined,
-          minutesToLift: form.minutesToLift
-            ? Number(form.minutesToLift)
-            : undefined,
+          kmToLift: form.kmToLift ? Number(form.kmToLift) : undefined,
         },
         images: form.images.map((img, index) => ({
           blobUrl: img.blobUrl,
@@ -350,31 +343,17 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                       placeholder="https://…"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label>Total price (€)</Label>
-                      <Input
-                        className="h-11"
-                        type="number"
-                        min={0}
-                        value={form.priceEuros}
-                        onChange={(e) =>
-                          setForm((f) => ({ ...f, priceEuros: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Review stars</Label>
-                      <div className="flex h-11 items-center rounded-lg border px-2">
-                        <StarRating
-                          value={form.stars}
-                          onChange={(v) =>
-                            setForm((f) => ({ ...f, stars: v || null }))
-                          }
-                          size="lg"
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-2">
+                    <Label>Total price (€)</Label>
+                    <Input
+                      className="h-11"
+                      type="number"
+                      min={0}
+                      value={form.priceEuros}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, priceEuros: e.target.value }))
+                      }
+                    />
                   </div>
                 </>
               )}
@@ -426,73 +405,76 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                       </Button>
                     </div>
                     <div className="space-y-2">
-                      {form.beds.map((bed, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Select
-                            value={bed.type}
-                            onValueChange={(value) => {
-                              if (!value) return;
-                              setForm((f) => ({
-                                ...f,
-                                beds: f.beds.map((b, i) =>
-                                  i === index
-                                    ? {
-                                        ...b,
-                                        type: value as BedConfig["type"],
-                                      }
-                                    : b
-                                ),
-                              }));
-                            }}
-                          >
-                            <SelectTrigger className="h-10 flex-1">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
+                      {form.beds.map((bed, index) => {
+                        const meta = bedTypeMeta(bed.type);
+                        const Icon = meta?.icon ?? BED_TYPES[0].icon;
+                        return (
+                          <div key={index} className="flex items-center gap-2">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-muted/40 text-muted-foreground">
+                              <Icon className="size-4" />
+                            </span>
+                            <select
+                              value={bed.type}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  beds: f.beds.map((b, i) =>
+                                    i === index
+                                      ? {
+                                          ...b,
+                                          type: e.target
+                                            .value as BedConfig["type"],
+                                        }
+                                      : b
+                                  ),
+                                }))
+                              }
+                              className="h-10 flex-1 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                            >
                               {BED_TYPES.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {t.icon} {t.label}
-                                </SelectItem>
+                                <option key={t.id} value={t.id}>
+                                  {t.label}
+                                </option>
                               ))}
-                            </SelectContent>
-                          </Select>
-                          <Input
-                            className="h-10 w-20"
-                            type="number"
-                            min={1}
-                            value={bed.count}
-                            onChange={(e) =>
-                              setForm((f) => ({
-                                ...f,
-                                beds: f.beds.map((b, i) =>
-                                  i === index
-                                    ? {
-                                        ...b,
-                                        count: Math.max(
-                                          1,
-                                          Number(e.target.value) || 1
-                                        ),
-                                      }
-                                    : b
-                                ),
-                              }))
-                            }
-                          />
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            onClick={() =>
-                              setForm((f) => ({
-                                ...f,
-                                beds: f.beds.filter((_, i) => i !== index),
-                              }))
-                            }
-                          >
-                            <Trash2 />
-                          </Button>
-                        </div>
-                      ))}
+                            </select>
+                            <Input
+                              className="h-10 w-20"
+                              type="number"
+                              min={1}
+                              value={bed.count}
+                              onChange={(e) =>
+                                setForm((f) => ({
+                                  ...f,
+                                  beds: f.beds.map((b, i) =>
+                                    i === index
+                                      ? {
+                                          ...b,
+                                          count: Math.max(
+                                            1,
+                                            Number(e.target.value) || 1
+                                          ),
+                                        }
+                                      : b
+                                  ),
+                                }))
+                              }
+                            />
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              onClick={() =>
+                                setForm((f) => ({
+                                  ...f,
+                                  beds: f.beds.filter((_, i) => i !== index),
+                                }))
+                              }
+                            >
+                              <Trash2 />
+                            </Button>
+                          </div>
+                        );
+                      })}
                       {form.beds.length === 0 && (
                         <p className="text-sm text-muted-foreground">
                           Optional — add bed types and counts.
@@ -517,20 +499,29 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Minutes to nearest lift</Label>
+                    <Label>Distance to nearest lift (km)</Label>
                     <Input
                       className="h-11"
                       type="number"
                       min={0}
-                      value={form.minutesToLift}
+                      step="0.1"
+                      value={form.kmToLift}
                       onChange={(e) =>
                         setForm((f) => ({
                           ...f,
-                          minutesToLift: e.target.value,
+                          kmToLift: e.target.value,
                         }))
                       }
-                      placeholder="5"
+                      placeholder="1.5"
                     />
+                    {form.kmToLift &&
+                      estimateDriveMinutes(Number(form.kmToLift)) != null && (
+                        <p className="text-xs text-muted-foreground">
+                          Estimated drive time: ~
+                          {estimateDriveMinutes(Number(form.kmToLift))} min
+                          (avg {LIFT_DRIVE_KMH} km/h on mountain roads)
+                        </p>
+                      )}
                   </div>
                 </>
               )}

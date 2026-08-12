@@ -1,5 +1,14 @@
 import type { LucideIcon } from "lucide-react";
-import { Car, Mountain, Palmtree, Building2 } from "lucide-react";
+import {
+  Bed,
+  BedDouble,
+  Building2,
+  Car,
+  Layers,
+  Mountain,
+  Palmtree,
+  Sofa,
+} from "lucide-react";
 
 export type TripTypeId = "ski" | "roadtrip" | "beach" | "city";
 
@@ -52,10 +61,10 @@ export function getTripType(id: string): TripTypeDefinition | undefined {
 }
 
 export const BED_TYPES = [
-  { id: "double" as const, label: "Double", icon: "🛏️" },
-  { id: "single" as const, label: "Single", icon: "🛌" },
-  { id: "bunk" as const, label: "Bunk", icon: "🪜" },
-  { id: "sofa" as const, label: "Sofa bed", icon: "🛋️" },
+  { id: "double" as const, label: "Double", icon: BedDouble },
+  { id: "single" as const, label: "Single", icon: Bed },
+  { id: "bunk" as const, label: "Bunk", icon: Layers },
+  { id: "sofa" as const, label: "Sofa bed", icon: Sofa },
 ];
 
 export const IMAGE_CATEGORIES = [

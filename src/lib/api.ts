@@ -16,8 +16,11 @@ export function handleApiError(error: unknown) {
   console.error(error);
   const message =
     error instanceof Error ? error.message : "Internal server error";
-  if (message.includes("DATABASE_URL")) {
+  if (message.includes("DATABASE_URL") || message.includes("OPENAI_API_KEY")) {
     return jsonError(message, 503);
+  }
+  if (message.includes("AI summary") || message.includes("AI returned")) {
+    return jsonError(message, 502);
   }
   return jsonError("Internal server error", 500);
 }

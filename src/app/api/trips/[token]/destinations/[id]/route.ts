@@ -2,8 +2,10 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { destinationImages, destinations, trips } from "@/db/schema";
 import { handleApiError, jsonError, jsonOk } from "@/lib/api";
+import { mergeTypeDetails } from "@/lib/ski-summary";
 import { assertMemberOnTrip, getTripByToken } from "@/lib/trip-data";
 import { destinationPayloadSchema } from "@/lib/validators";
+import type { DestinationTypeDetails } from "@/db/schema";
 
 type Params = { params: Promise<{ token: string; id: string }> };
 
@@ -52,7 +54,10 @@ export async function PATCH(request: Request, { params }: Params) {
         pros: input.pros,
         cons: input.cons,
         stars: input.stars ?? null,
-        typeDetails: input.typeDetails,
+        typeDetails: mergeTypeDetails(
+          existing.typeDetails as DestinationTypeDetails,
+          input.typeDetails as DestinationTypeDetails
+        ),
       })
       .where(eq(destinations.id, id));
 

@@ -9,6 +9,7 @@ import {
   MapPin,
   Mountain,
   Pencil,
+  Route,
   Timer,
   X,
 } from "lucide-react";
@@ -21,13 +22,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { StarRating } from "@/components/shared/star-rating";
 import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { ReactionBar } from "@/components/destination/reaction-bar";
 import { CommentThread } from "@/components/destination/comment-thread";
+import { SkiResortSummary } from "@/components/destination/ski-resort-summary";
+import { useTrip } from "@/components/trip/trip-context";
 import type { ApiDestination } from "@/lib/trip-data";
-import { formatBeds, formatPrice } from "@/lib/format";
+import {
+  bedTypeMeta,
+  formatKm,
+  formatPrice,
+  getLiftAccess,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -43,6 +50,7 @@ export function DestinationDetail({
   onOpenChange,
   onEdit,
 }: Props) {
+  const { trip } = useTrip();
   const [lightbox, setLightbox] = useState<string | null>(null);
   if (!destination) return null;
 
@@ -51,9 +59,11 @@ export function DestinationDetail({
     .sort((a, b) => a.sortOrder - b.sortOrder);
   const skiMaps = destination.images.filter((i) => i.category === "skimap");
   const price = formatPrice(destination.priceTotalCents);
-  const beds = formatBeds(destination.beds);
   const skiArea = destination.typeDetails?.skiArea;
-  const minutes = destination.typeDetails?.minutesToLift;
+  const lift = getLiftAccess(destination.typeDetails);
+  const creator = trip.members.find(
+    (m) => m.id === destination.createdByMemberId,
+  );
 
   const byKind = {
     favorite: destination.reactions.filter((r) => r.kind === "favorite"),
@@ -86,29 +96,66 @@ export function DestinationDetail({
                 <Mountain className="size-12" />
               </div>
             )}
-            <DialogHeader className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-16 text-left">
-              <DialogTitle className="text-xl text-white drop-shadow">
-                {destination.name}
-              </DialogTitle>
-              {destination.locationText && (
-                <p className="flex items-center gap-1 text-sm text-white/85">
-                  <MapPin className="size-3.5" />
-                  {destination.locationText}
-                </p>
-              )}
+            <DialogHeader className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-4 pt-16 text-left">
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="text-xl leading-tight text-white drop-shadow">
+                    {destination.name}
+                  </DialogTitle>
+                  {destination.locationText && (
+                    <p className="mt-1 flex items-center gap-1 text-sm text-white/85">
+                      <MapPin className="size-3.5 shrink-0" />
+                      <span className="line-clamp-1">
+                        {destination.locationText}
+                      </span>
+                    </p>
+                  )}
+                </div>
+                {price && (
+                  <span className="shrink-0 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-sky-700 shadow-sm">
+                    {price}
+                  </span>
+                )}
+              </div>
             </DialogHeader>
           </div>
 
           <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <StarRating value={destination.stars} />
-              <div className="flex gap-2">
-                {price && (
-                  <Badge className="rounded-full bg-sky-600 text-white">
-                    {price}
-                  </Badge>
+            <div className="flex items-center gap-3">
+              {creator && (
+                <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+                  <MemberAvatar
+                    name={creator.firstName}
+                    color={creator.avatarColor}
+                    size="sm"
+                  />
+                  <span className="truncate">
+                    Added by{" "}
+                    <span className="font-medium text-foreground">
+                      {creator.firstName}
+                    </span>
+                  </span>
+                </div>
+              )}
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                {destination.bookingUrl && (
+                  <a
+                    href={destination.bookingUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Button size="sm" className="rounded-full">
+                      <ExternalLink />
+                      Booking
+                    </Button>
+                  </a>
                 )}
-                <Button size="sm" variant="outline" onClick={onEdit}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={onEdit}
+                >
                   <Pencil />
                   Edit
                 </Button>
@@ -124,10 +171,16 @@ export function DestinationDetail({
                   {skiArea}
                 </Badge>
               )}
-              {minutes != null && (
+              {lift.km != null && (
+                <Badge variant="secondary" className="gap-1 rounded-full">
+                  <Route className="size-3" />
+                  {formatKm(lift.km)} to lift
+                </Badge>
+              )}
+              {lift.minutes != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Timer className="size-3" />
-                  {minutes} min to lift
+                  ~{lift.minutes} min drive
                 </Badge>
               )}
               {destination.bedrooms != null && (
@@ -142,11 +195,20 @@ export function DestinationDetail({
                   {destination.bathrooms} baths
                 </Badge>
               )}
-              {beds && (
-                <Badge variant="secondary" className="rounded-full">
-                  {beds}
-                </Badge>
-              )}
+              {destination.beds.map((bed, i) => {
+                const meta = bedTypeMeta(bed.type);
+                const Icon = meta?.icon ?? BedDouble;
+                return (
+                  <Badge
+                    key={`${bed.type}-${i}`}
+                    variant="secondary"
+                    className="gap-1 rounded-full"
+                  >
+                    <Icon className="size-3" />
+                    {bed.count}× {meta?.label ?? bed.type}
+                  </Badge>
+                );
+              })}
             </div>
 
             {destination.description && (
@@ -229,27 +291,30 @@ export function DestinationDetail({
               </div>
             )}
 
-            {skiMaps.length > 0 && (
-              <div>
-                <div className="mb-2 text-sm font-semibold">Ski map</div>
-                <div className="grid gap-2">
-                  {skiMaps.map((img) => (
-                    <button
-                      key={img.id}
-                      type="button"
-                      className="relative aspect-[4/3] overflow-hidden rounded-2xl ring-1 ring-sky-100"
-                      onClick={() => setLightbox(img.blobUrl)}
-                    >
-                      <Image
-                        src={img.blobUrl}
-                        alt="Ski map"
-                        fill
-                        className="object-contain bg-white"
-                        unoptimized={img.blobUrl.startsWith("/")}
-                      />
-                    </button>
-                  ))}
-                </div>
+            {(skiMaps.length > 0 || Boolean(skiArea)) && (
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">About the ski area</div>
+                {skiMaps.length > 0 && (
+                  <div className="grid gap-2">
+                    {skiMaps.map((img) => (
+                      <button
+                        key={img.id}
+                        type="button"
+                        className="relative aspect-[4/3] overflow-hidden rounded-2xl ring-1 ring-sky-100"
+                        onClick={() => setLightbox(img.blobUrl)}
+                      >
+                        <Image
+                          src={img.blobUrl}
+                          alt="Ski map"
+                          fill
+                          className="object-contain bg-white"
+                          unoptimized={img.blobUrl.startsWith("/")}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <SkiResortSummary destination={destination} />
               </div>
             )}
 
@@ -286,20 +351,6 @@ export function DestinationDetail({
                 ))}
               </div>
             </div>
-
-            {destination.bookingUrl && (
-              <a
-                href={destination.bookingUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex"
-              >
-                <Button variant="outline">
-                  <ExternalLink />
-                  Open booking site
-                </Button>
-              </a>
-            )}
 
             <Separator />
             <CommentThread destination={destination} defaultExpanded />

@@ -19,7 +19,14 @@ export type BedConfig = {
 
 export type SkiTypeDetails = {
   skiArea?: string;
+  /** Distance to nearest lift in kilometers */
+  kmToLift?: number;
+  /** @deprecated Prefer kmToLift; kept for older records */
   minutesToLift?: number;
+  /** AI-written overview of the ski area */
+  skiResortSummary?: string;
+  skiResortSummaryGeneratedAt?: string;
+  skiResortSummaryVersion?: number;
 };
 
 export type DestinationTypeDetails = SkiTypeDetails & Record<string, unknown>;
