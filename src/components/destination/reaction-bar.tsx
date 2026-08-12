@@ -72,7 +72,7 @@ export function ReactionBar({ destination, compact }: Props) {
 
   async function react(kind: "favorite" | "like" | "maybe" | "no") {
     if (!currentMember) {
-      toast.message("Pick who you are first");
+      toast.message("Kies eerst wie je bent");
       return;
     }
 
@@ -89,7 +89,7 @@ export function ReactionBar({ destination, compact }: Props) {
         );
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "Failed to react");
+          throw new Error(data.error || "Kon niet stemmen");
         }
 
         // Refresh local trip state for consistency
@@ -98,7 +98,9 @@ export function ReactionBar({ destination, compact }: Props) {
           setTrip(await tripRes.json());
         }
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed");
+        toast.error(
+          error instanceof Error ? error.message : "Kon niet voltooien"
+        );
         const tripRes = await fetch(`/api/trips/${trip.token}`);
         if (tripRes.ok) setTrip(await tripRes.json());
       }

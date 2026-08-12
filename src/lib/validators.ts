@@ -11,7 +11,7 @@ export const imageInputSchema = z.object({
     .min(1)
     .refine(
       (v) => v.startsWith("/") || /^https?:\/\//.test(v),
-      "Invalid image URL"
+      "Ongeldige afbeeldings-URL"
     ),
   category: z.enum(["accommodation", "surroundings", "skimap"]),
   sortOrder: z.number().int().min(0).default(0),

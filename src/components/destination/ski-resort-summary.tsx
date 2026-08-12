@@ -52,7 +52,8 @@ export function SkiResortSummary({ destination }: Props) {
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to generate summary");
+      if (!res.ok)
+        throw new Error(data.error || "Kon samenvatting niet genereren");
 
       const nextSummary = data.summary as string;
       const generatedAt =
@@ -76,7 +77,9 @@ export function SkiResortSummary({ destination }: Props) {
         ),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate summary");
+      setError(
+        e instanceof Error ? e.message : "Kon samenvatting niet genereren"
+      );
     } finally {
       setLoading(false);
     }
@@ -89,7 +92,7 @@ export function SkiResortSummary({ destination }: Props) {
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold tracking-wide text-violet-700 uppercase ring-1 ring-violet-200">
           <Sparkles className="size-3" />
-          AI generated
+          AI-gegenereerd
         </span>
         <Button
           type="button"
@@ -101,7 +104,7 @@ export function SkiResortSummary({ destination }: Props) {
             requestedFor.current = `${destination.id}:${skiArea}:force`;
             void generate(true);
           }}
-          aria-label="Regenerate AI summary"
+          aria-label="AI-samenvatting opnieuw genereren"
         >
           {loading ? (
             <Loader2 className="size-4 animate-spin" />
@@ -128,7 +131,7 @@ export function SkiResortSummary({ destination }: Props) {
             className="rounded-full"
             onClick={() => void generate(true)}
           >
-            Try again
+            Opnieuw proberen
           </Button>
         </div>
       )}
@@ -140,7 +143,7 @@ export function SkiResortSummary({ destination }: Props) {
       )}
 
       <p className="mt-2 text-[11px] text-muted-foreground">
-        AI overview — verify key facts before you book.
+        AI-overzicht — controleer belangrijke feiten voor je boekt.
       </p>
     </div>
   );

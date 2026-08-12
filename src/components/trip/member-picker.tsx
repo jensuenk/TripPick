@@ -26,7 +26,7 @@ export function MemberPicker({
   onSelect,
   allowDismiss = false,
   onOpenChange,
-  title = "Who are you?",
+  title = "Wie ben jij?",
 }: Props) {
   return (
     <Dialog
@@ -43,7 +43,7 @@ export function MemberPicker({
         <DialogHeader>
           <DialogTitle className="text-xl">{title}</DialogTitle>
           <DialogDescription>
-            Pick your name so we know who is voting and commenting.
+            Kies je naam zodat we weten wie stemt en reageert.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

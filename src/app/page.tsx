@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { ArrowRight, Heart, Mountain, Sparkles, Users } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export default function LandingPage() {
   return (
@@ -34,7 +34,7 @@ export default function LandingPage() {
         </div>
         <Link href="/new">
           <Button size="sm" variant="secondary">
-            Create trip
+            Reis maken
           </Button>
         </Link>
       </header>
@@ -47,7 +47,7 @@ export default function LandingPage() {
           className="mb-5 inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-xs font-medium text-sky-700 shadow-sm ring-1 ring-sky-200 backdrop-blur"
         >
           <Sparkles className="size-3.5" />
-          Made for family trips
+          Gemaakt voor familievakanties
         </motion.div>
 
         <motion.h1
@@ -56,11 +56,10 @@ export default function LandingPage() {
           transition={{ duration: 0.55, delay: 0.05 }}
           className="max-w-2xl text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl"
         >
-          Pick the perfect{" "}
+          Kies samen de perfecte{" "}
           <span className="bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
-            ski destination
-          </span>{" "}
-          together
+            skibestemming
+          </span>
         </motion.h1>
 
         <motion.p
@@ -69,8 +68,8 @@ export default function LandingPage() {
           transition={{ duration: 0.55, delay: 0.12 }}
           className="mt-5 max-w-xl text-base text-muted-foreground text-pretty sm:text-lg"
         >
-          Collect Airbnb & Booking options, share a private link with your crew,
-          then vote, favorite, and chat until everyone agrees.
+          Verzamel bestemmingen, deel een privélink met je groep,
+          vergelijk en stem samen tot iedereen akkoord is.
         </motion.p>
 
         <motion.div
@@ -84,7 +83,7 @@ export default function LandingPage() {
               size="lg"
               className="h-12 gap-2 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 px-6 text-base text-white shadow-xl shadow-sky-500/30 hover:from-sky-600 hover:to-indigo-700"
             >
-              Create a trip
+              Reis maken
               <ArrowRight className="size-4" />
             </Button>
           </Link>
@@ -99,18 +98,18 @@ export default function LandingPage() {
           {[
             {
               icon: Users,
-              title: "No login needed",
-              text: "Open the link, pick your name, and you're in.",
+              title: "Geen login nodig",
+              text: "Open de link, kies je naam, en je bent erbij.",
             },
             {
               icon: Heart,
-              title: "Vote & favorite",
-              text: "Like, maybe, or no — see what the group wants.",
+              title: "De favoriete bestemming",
+              text: "Leuk, misschien of nee — zie wat de groep wil.",
             },
             {
               icon: Mountain,
-              title: "Ski-ready cards",
-              text: "Photos, lifts, beds, prices — all at a glance.",
+              title: "Ski-klare kaarten",
+              text: "Foto's, liften, bedden, prijzen — in één oogopslag.",
             },
           ].map((item) => (
             <div

@@ -58,7 +58,7 @@ export async function uploadImage(file: File): Promise<string> {
   const res = await fetch("/api/upload", { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Upload failed");
+    throw new Error(data.error || "Upload mislukt");
   }
   const data = (await res.json()) as { url: string };
   return data.url;

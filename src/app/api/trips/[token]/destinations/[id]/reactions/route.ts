@@ -18,20 +18,20 @@ export async function PUT(request: Request, { params }: Params) {
       .from(trips)
       .where(eq(trips.token, token))
       .limit(1);
-    if (!trip) return jsonError("Trip not found", 404);
+    if (!trip) return jsonError("Reis niet gevonden", 404);
 
     const [dest] = await db
       .select()
       .from(destinations)
       .where(and(eq(destinations.id, id), eq(destinations.tripId, trip.id)))
       .limit(1);
-    if (!dest) return jsonError("Destination not found", 404);
+    if (!dest) return jsonError("Bestemming niet gevonden", 404);
 
     const body = await request.json();
     const input = reactionSchema.parse(body);
 
     const member = await assertMemberOnTrip(trip.id, input.memberId);
-    if (!member) return jsonError("Member not found on this trip", 403);
+    if (!member) return jsonError("Persoon niet gevonden op deze reis", 403);
 
     if (input.kind === "favorite") {
       const [existing] = await db

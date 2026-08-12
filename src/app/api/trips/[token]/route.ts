@@ -7,7 +7,7 @@ export async function GET(_request: Request, { params }: Params) {
   try {
     const { token } = await params;
     const trip = await getTripByToken(token);
-    if (!trip) return jsonError("Trip not found", 404);
+    if (!trip) return jsonError("Reis niet gevonden", 404);
     return jsonOk(trip);
   } catch (error) {
     return handleApiError(error);

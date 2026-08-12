@@ -12,13 +12,13 @@ export async function POST(request: Request): Promise<NextResponse> {
     // Local/dev fallback: multipart upload to public/uploads when no Blob token
     if (contentType.includes("multipart/form-data")) {
       if (process.env.BLOB_READ_WRITE_TOKEN) {
-        return jsonError("Use client upload with Blob token configured", 400);
+        return jsonError("Gebruik client-upload met geconfigureerde Blob-token", 400);
       }
 
       const form = await request.formData();
       const file = form.get("file");
       if (!(file instanceof File)) {
-        return jsonError("Missing file");
+        return jsonError("Bestand ontbreekt");
       }
 
       const bytes = Buffer.from(await file.arrayBuffer());
@@ -35,7 +35,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (!process.env.BLOB_READ_WRITE_TOKEN) {
       return jsonError(
-        "BLOB_READ_WRITE_TOKEN is not set. For local uploads use multipart /api/upload.",
+        "BLOB_READ_WRITE_TOKEN is niet ingesteld. Voor lokale uploads gebruik multipart /api/upload.",
         503
       );
     }

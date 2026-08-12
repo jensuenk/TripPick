@@ -24,7 +24,7 @@ export function StarRating({ value, onChange, size = "md", className }: Props) {
     <div
       className={cn("inline-flex items-center gap-0.5", className)}
       role={interactive ? "slider" : "img"}
-      aria-label={rating ? `${rating} out of 5 stars` : "No rating"}
+      aria-label={rating ? `${rating} van 5 sterren` : "Geen beoordeling"}
       aria-valuenow={interactive ? rating : undefined}
       aria-valuemin={interactive ? 0 : undefined}
       aria-valuemax={interactive ? 5 : undefined}

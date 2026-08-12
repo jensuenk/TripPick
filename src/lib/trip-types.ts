@@ -24,8 +24,8 @@ export type TripTypeDefinition = {
 export const TRIP_TYPES: TripTypeDefinition[] = [
   {
     id: "ski",
-    label: "Ski trip",
-    description: "Powder, chalets, and lift access",
+    label: "Skireis",
+    description: "Poedersneeuw, chalets en lifttoegang",
     icon: Mountain,
     available: true,
     accent: "from-sky-500 to-indigo-600",
@@ -33,23 +33,23 @@ export const TRIP_TYPES: TripTypeDefinition[] = [
   {
     id: "roadtrip",
     label: "Roadtrip",
-    description: "Scenic drives and stopovers",
+    description: "Prachtige routes en tussenstops",
     icon: Car,
     available: false,
     accent: "from-amber-500 to-orange-600",
   },
   {
     id: "beach",
-    label: "Beach",
-    description: "Sun, sand, and sea views",
+    label: "Strand",
+    description: "Zon, zand en zeezicht",
     icon: Palmtree,
     available: false,
     accent: "from-cyan-400 to-teal-600",
   },
   {
     id: "city",
-    label: "City trip",
-    description: "Culture, food, and nightlife",
+    label: "Stedentrip",
+    description: "Cultuur, eten en nachtleven",
     icon: Building2,
     available: false,
     accent: "from-violet-500 to-fuchsia-600",
@@ -61,27 +61,27 @@ export function getTripType(id: string): TripTypeDefinition | undefined {
 }
 
 export const BED_TYPES = [
-  { id: "double" as const, label: "Double", icon: BedDouble },
-  { id: "single" as const, label: "Single", icon: Bed },
-  { id: "bunk" as const, label: "Bunk", icon: Layers },
-  { id: "sofa" as const, label: "Sofa bed", icon: Sofa },
+  { id: "double" as const, label: "Tweepersoons", icon: BedDouble },
+  { id: "single" as const, label: "Eenpersoons", icon: Bed },
+  { id: "bunk" as const, label: "Stapelbed", icon: Layers },
+  { id: "sofa" as const, label: "Slaapbank", icon: Sofa },
 ];
 
 export const IMAGE_CATEGORIES = [
   {
     id: "accommodation" as const,
-    label: "Accommodation",
-    hint: "Rooms, kitchen, bathrooms",
+    label: "Accommodatie",
+    hint: "Kamers, keuken, badkamers",
   },
   {
     id: "surroundings" as const,
-    label: "Surroundings",
-    hint: "Village, mountain views",
+    label: "Omgeving",
+    hint: "Dorp, bergzicht",
   },
   {
     id: "skimap" as const,
-    label: "Ski map",
-    hint: "Piste map of the area",
+    label: "Skikaart",
+    hint: "Pistekaart van het gebied",
     skiOnly: true,
   },
 ] as const;

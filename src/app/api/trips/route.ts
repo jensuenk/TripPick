@@ -11,11 +11,11 @@ export async function POST(request: Request) {
     const input = createTripSchema.parse(body);
 
     if (new Date(input.endDate) < new Date(input.startDate)) {
-      return jsonError("End date must be on or after start date");
+      return jsonError("Einddatum moet op of na de begindatum liggen");
     }
 
     if (input.type !== "ski") {
-      return jsonError("Only ski trips are available right now");
+      return jsonError("Momenteel zijn alleen skireizen beschikbaar");
     }
 
     const db = getDb();

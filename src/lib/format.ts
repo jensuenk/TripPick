@@ -1,4 +1,5 @@
 import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { nl } from "date-fns/locale";
 import type { BedConfig } from "@/db/schema";
 import { BED_TYPES } from "@/lib/trip-types";
 
@@ -52,11 +53,11 @@ export function formatDateRange(start: string, end: string): string {
     const e = parseISO(end);
     if (s.getFullYear() === e.getFullYear()) {
       if (s.getMonth() === e.getMonth()) {
-        return `${format(s, "d")} – ${format(e, "d MMM yyyy")}`;
+        return `${format(s, "d", { locale: nl })} – ${format(e, "d MMM yyyy", { locale: nl })}`;
       }
-      return `${format(s, "d MMM")} – ${format(e, "d MMM yyyy")}`;
+      return `${format(s, "d MMM", { locale: nl })} – ${format(e, "d MMM yyyy", { locale: nl })}`;
     }
-    return `${format(s, "d MMM yyyy")} – ${format(e, "d MMM yyyy")}`;
+    return `${format(s, "d MMM yyyy", { locale: nl })} – ${format(e, "d MMM yyyy", { locale: nl })}`;
   } catch {
     return `${start} – ${end}`;
   }
@@ -64,7 +65,7 @@ export function formatDateRange(start: string, end: string): string {
 
 export function formatPrice(cents: number | null | undefined): string | null {
   if (cents == null) return null;
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat("nl-BE", {
     style: "currency",
     currency: "EUR",
     maximumFractionDigits: 0,
@@ -74,7 +75,7 @@ export function formatPrice(cents: number | null | undefined): string | null {
 export function formatRelative(date: string | Date): string {
   try {
     const d = typeof date === "string" ? new Date(date) : date;
-    return formatDistanceToNow(d, { addSuffix: true });
+    return formatDistanceToNow(d, { addSuffix: true, locale: nl });
   } catch {
     return "";
   }

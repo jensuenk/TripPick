@@ -16,13 +16,13 @@ export async function POST(request: Request, { params }: Params) {
       .from(trips)
       .where(eq(trips.token, token))
       .limit(1);
-    if (!trip) return jsonError("Trip not found", 404);
+    if (!trip) return jsonError("Reis niet gevonden", 404);
 
     const body = await request.json();
     const input = destinationPayloadSchema.parse(body);
 
     const member = await assertMemberOnTrip(trip.id, input.memberId);
-    if (!member) return jsonError("Member not found on this trip", 403);
+    if (!member) return jsonError("Persoon niet gevonden op deze reis", 403);
 
     const bookingUrl =
       input.bookingUrl && input.bookingUrl.length > 0

@@ -1,7 +1,7 @@
 import type { DestinationTypeDetails } from "@/db/schema";
 
 /** Bump when the summary prompt changes so old caches refresh. */
-export const SKI_SUMMARY_VERSION = 2;
+export const SKI_SUMMARY_VERSION = 3;
 
 export async function generateSkiResortSummary(input: {
   skiArea: string;
@@ -10,12 +10,12 @@ export async function generateSkiResortSummary(input: {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "OPENAI_API_KEY is not set. Add it to .env.local to enable AI ski resort summaries."
+      "OPENAI_API_KEY is niet ingesteld. Voeg die toe aan .env.local om AI-skigebiedsamenvattingen te gebruiken."
     );
   }
 
   const locationHint = input.locationText
-    ? ` Nearby village/location context: ${input.locationText}.`
+    ? ` Context van nabijgelegen dorp/locatie: ${input.locationText}.`
     : "";
 
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -32,17 +32,17 @@ export async function generateSkiResortSummary(input: {
         {
           role: "system",
           content: [
-            "You write compact ski-area fact summaries for a family trip planner.",
-            "Write 1 short paragraph, about 55–80 words. No bullet lists.",
-            "Focus only on: resort size (piste km if known), altitude/height range, slope mix (beginner/intermediate/advanced), how busy or popular it typically is, and snow parks / fun parks if notable.",
-            "Skip other activities (spas, shopping, hiking, nightlife, etc.).",
-            "If a fact is uncertain, say so briefly or omit it — do not invent precise numbers.",
-            "Do not mention that you are an AI.",
+            "Je schrijft korte feitelijke samenvattingen van skigebieden voor een familie-vakantieplanner.",
+            "Schrijf in het Nederlands (nl-BE/nl-NL), 1 kort alinea van ongeveer 55–80 woorden. Geen opsommingen.",
+            "Focus enkel op: gebiedsgrootte (piste-km indien bekend), hoogte/hoogtebereik, soort pistes (beginner/gevorderd/expert), drukte/populariteit, en snow/fun parks als die opvallend zijn.",
+            "Sla andere activiteiten over (spa, winkelen, wandelen, nachtleven, enz.).",
+            "Als een feit onzeker is, zeg dat kort of laat het weg — verzin geen precieze cijfers.",
+            "Vermeld niet dat je een AI bent. Houd het kort.",
           ].join(" "),
         },
         {
           role: "user",
-          content: `Summarize the ski area "${input.skiArea}".${locationHint}`,
+          content: `Vat het skigebied "${input.skiArea}" samen.${locationHint}`,
         },
       ],
     }),
@@ -51,14 +51,16 @@ export async function generateSkiResortSummary(input: {
   if (!res.ok) {
     const err = await res.text();
     console.error("OpenAI ski summary error", res.status, err);
-    throw new Error("AI summary failed. Check your OpenAI API key and try again.");
+    throw new Error(
+      "AI-samenvatting mislukt. Controleer je OpenAI API-sleutel en probeer opnieuw."
+    );
   }
 
   const data = (await res.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
   };
   const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error("AI returned an empty summary");
+  if (!text) throw new Error("AI gaf een lege samenvatting terug");
   return text;
 }
 

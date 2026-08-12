@@ -102,7 +102,7 @@ type Props = {
   destination?: ApiDestination | null;
 };
 
-const STEPS = ["Basics", "Stay", "Ski", "Story", "Photos"] as const;
+const STEPS = ["Basis", "Verblijf", "Ski", "Verhaal", "Foto's"] as const;
 
 export function DestinationWizard({ open, onOpenChange, destination }: Props) {
   const { trip, currentMember, setTrip } = useTrip();
@@ -114,6 +114,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
   const [uploading, setUploading] = useState<ImageCategory | null>(null);
   const [proInput, setProInput] = useState("");
   const [conInput, setConInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   // Reset when opening for a different destination
   useEffect(() => {
@@ -131,7 +132,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
     try {
       const result = await geocodeLocation(form.locationText);
       if (!result) {
-        toast.error("Couldn't find that location");
+        toast.error("Kon die locatie niet vinden");
         return;
       }
       setForm((f) => ({
@@ -140,7 +141,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         lng: result.lng,
         locationText: result.displayName,
       }));
-      toast.success("Location found");
+      toast.success("Locatie gevonden");
     } finally {
       setGeocoding(false);
     }
@@ -162,7 +163,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
       }
       setForm((f) => ({ ...f, images: [...f.images, ...uploaded] }));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Upload failed");
+      toast.error(
+        error instanceof Error ? error.message : "Upload mislukt"
+      );
     } finally {
       setUploading(null);
     }
@@ -170,7 +173,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
 
   async function save() {
     if (!currentMember) {
-      toast.message("Pick who you are first");
+      toast.message("Kies eerst wie je bent");
       return;
     }
     setSaving(true);
@@ -211,17 +214,59 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Save failed");
+      if (!res.ok) throw new Error(data.error || "Opslaan mislukt");
 
       const tripRes = await fetch(`/api/trips/${trip.token}`);
       if (tripRes.ok) setTrip(await tripRes.json());
 
-      toast.success(isEdit ? "Destination updated" : "Destination added");
+      toast.success(
+        isEdit ? "Bestemming bijgewerkt" : "Bestemming toegevoegd"
+      );
       onOpenChange(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Save failed");
+      toast.error(
+        error instanceof Error ? error.message : "Opslaan mislukt"
+      );
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!isEdit || !destination || !currentMember) {
+      toast.message("Kies eerst wie je bent");
+      return;
+    }
+    const ok = window.confirm(
+      `Bestemming “${destination.name}” verwijderen? Dit kan niet ongedaan worden gemaakt.`
+    );
+    if (!ok) return;
+
+    setDeleting(true);
+    try {
+      const res = await fetch(
+        `/api/trips/${trip.token}/destinations/${destination.id}`,
+        {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId: currentMember.id }),
+        }
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Verwijderen mislukt");
+
+      setTrip({
+        ...trip,
+        destinations: trip.destinations.filter((d) => d.id !== destination.id),
+      });
+      toast.success("Bestemming verwijderd");
+      onOpenChange(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Verwijderen mislukt"
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -237,7 +282,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
       >
         <DialogHeader className="border-b px-5 py-4">
           <DialogTitle>
-            {isEdit ? "Edit destination" : "Add destination"}
+            {isEdit ? "Bestemming bewerken" : "Bestemming toevoegen"}
           </DialogTitle>
           <div className="mt-3 flex gap-1.5">
             {STEPS.map((label, i) => (
@@ -274,16 +319,16 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     </div>
                     <div>
                       <div className="text-sm font-semibold">
-                        Import from booking site
+                        Importeren van boekingssite
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Coming soon — paste Airbnb/Booking URL
+                        Binnenkort — plak Airbnb/Booking-URL
                       </div>
                     </div>
                   </button>
 
                   <div className="space-y-2">
-                    <Label>Name *</Label>
+                    <Label>Naam *</Label>
                     <Input
                       className="h-11"
                       value={form.name}
@@ -294,7 +339,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Location</Label>
+                    <Label>Locatie</Label>
                     <div className="flex gap-2">
                       <Input
                         className="h-11"
@@ -308,7 +353,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                           }))
                         }
                         onBlur={() => void handleGeocode()}
-                        placeholder="Les Gets, France"
+                        placeholder="Les Gets, Frankrijk"
                       />
                       <Button
                         type="button"
@@ -320,7 +365,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                         {geocoding ? (
                           <Loader2 className="animate-spin" />
                         ) : (
-                          "Find"
+                          "Zoeken"
                         )}
                       </Button>
                     </div>
@@ -333,7 +378,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Booking URL</Label>
+                    <Label>Boekings-URL</Label>
                     <Input
                       className="h-11"
                       value={form.bookingUrl}
@@ -344,7 +389,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Total price (€)</Label>
+                    <Label>Totale prijs (€)</Label>
                     <Input
                       className="h-11"
                       type="number"
@@ -362,7 +407,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
-                      <Label>Bedrooms</Label>
+                      <Label>Slaapkamers</Label>
                       <Input
                         className="h-11"
                         type="number"
@@ -374,7 +419,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Bathrooms</Label>
+                      <Label>Badkamers</Label>
                       <Input
                         className="h-11"
                         type="number"
@@ -388,7 +433,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label>Beds</Label>
+                      <Label>Bedden</Label>
                       <Button
                         type="button"
                         size="sm"
@@ -401,7 +446,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                         }
                       >
                         <Plus />
-                        Add
+                        Toevoegen
                       </Button>
                     </div>
                     <div className="space-y-2">
@@ -477,7 +522,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                       })}
                       {form.beds.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                          Optional — add bed types and counts.
+                          Optioneel — voeg bedtypes en aantallen toe.
                         </p>
                       )}
                     </div>
@@ -488,7 +533,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
               {step === 2 && (
                 <>
                   <div className="space-y-2">
-                    <Label>Nearby ski area</Label>
+                    <Label>Skigebied in de buurt</Label>
                     <Input
                       className="h-11"
                       value={form.skiArea}
@@ -499,7 +544,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Distance to nearest lift (km)</Label>
+                    <Label>Afstand tot dichtstbijzijnde lift (km)</Label>
                     <Input
                       className="h-11"
                       type="number"
@@ -517,9 +562,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     {form.kmToLift &&
                       estimateDriveMinutes(Number(form.kmToLift)) != null && (
                         <p className="text-xs text-muted-foreground">
-                          Estimated drive time: ~
+                          Geschatte rijtijd: ~
                           {estimateDriveMinutes(Number(form.kmToLift))} min
-                          (avg {LIFT_DRIVE_KMH} km/h on mountain roads)
+                          (gem. {LIFT_DRIVE_KMH} km/u op bergwegen)
                         </p>
                       )}
                   </div>
@@ -529,18 +574,18 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
               {step === 3 && (
                 <>
                   <div className="space-y-2">
-                    <Label>Description</Label>
+                    <Label>Beschrijving</Label>
                     <Textarea
                       rows={4}
                       value={form.description}
                       onChange={(e) =>
                         setForm((f) => ({ ...f, description: e.target.value }))
                       }
-                      placeholder="What makes this place special?"
+                      placeholder="Wat maakt deze plek bijzonder?"
                     />
                   </div>
                   <ChipList
-                    label="Positive points"
+                    label="Pluspunten"
                     tone="positive"
                     values={form.pros}
                     input={proInput}
@@ -559,7 +604,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                     }
                   />
                   <ChipList
-                    label="Negative points"
+                    label="Minpunten"
                     tone="negative"
                     values={form.cons}
                     input={conInput}
@@ -601,7 +646,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                             <Upload className="size-6" />
                           )}
                           <span className="text-sm font-medium">
-                            Upload photos
+                            Foto&apos;s uploaden
                           </span>
                           <input
                             type="file"
@@ -656,39 +701,51 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         </div>
 
         <div className="flex gap-2 border-t px-5 py-4 safe-pb">
+          {isEdit && (
+            <Button
+              variant="destructive"
+              className="h-11"
+              disabled={saving || deleting}
+              onClick={() => void handleDelete()}
+            >
+              <Trash2 />
+              {deleting ? "Verwijderen…" : "Verwijderen"}
+            </Button>
+          )}
           {step > 0 && (
             <Button
               variant="outline"
               className="h-11"
+              disabled={deleting}
               onClick={() => setStep((s) => s - 1)}
             >
               <ArrowLeft />
-              Back
+              Terug
             </Button>
           )}
           {step < STEPS.length - 1 ? (
             <Button
               className="h-11 flex-1 bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
-              disabled={!canNext}
+              disabled={!canNext || deleting}
               onClick={() => setStep((s) => s + 1)}
             >
-              Continue
+              Verder
               <ArrowRight />
             </Button>
           ) : (
             <Button
               className="h-11 flex-1 bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
-              disabled={saving || !canNext}
+              disabled={saving || deleting || !canNext}
               onClick={() => void save()}
             >
               {saving ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Saving…
+                  Opslaan…
                 </>
               ) : (
                 <>
-                  {isEdit ? "Save changes" : "Add destination"}
+                  {isEdit ? "Wijzigingen opslaan" : "Bestemming toevoegen"}
                   <Check />
                 </>
               )}
@@ -731,7 +788,7 @@ function ChipList({
               onAdd();
             }
           }}
-          placeholder="Add a point…"
+          placeholder="Voeg een punt toe…"
         />
         <Button type="button" variant="secondary" onClick={onAdd}>
           <Plus />

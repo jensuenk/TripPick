@@ -25,7 +25,7 @@ import { TRIP_TYPES } from "@/lib/trip-types";
 import { pickAvatarColor } from "@/lib/avatars";
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Type", "Details", "Travelers", "Share"] as const;
+const STEPS = ["Type", "Gegevens", "Reisgenoten", "Delen"] as const;
 
 export default function NewTripPage() {
   const router = useRouter();
@@ -51,7 +51,7 @@ export default function NewTripPage() {
     const value = travelerInput.trim();
     if (!value) return;
     if (travelers.some((t) => t.toLowerCase() === value.toLowerCase())) {
-      toast.error("That name is already added");
+      toast.error("Die naam staat er al bij");
       return;
     }
     setTravelers((prev) => [...prev, value]);
@@ -73,13 +73,15 @@ export default function NewTripPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create trip");
+      if (!res.ok) throw new Error(data.error || "Kon de reis niet aanmaken");
       const url = `${window.location.origin}/trip/${data.token}`;
       setShareUrl(url);
       setCreatedToken(data.token);
       setStep(3);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      toast.error(
+        error instanceof Error ? error.message : "Er ging iets mis"
+      );
     } finally {
       setCreating(false);
     }
@@ -87,7 +89,7 @@ export default function NewTripPage() {
 
   async function copyLink() {
     await navigator.clipboard.writeText(shareUrl);
-    toast.success("Link copied!");
+    toast.success("Link gekopieerd!");
   }
 
   async function shareLink() {
@@ -95,7 +97,7 @@ export default function NewTripPage() {
       try {
         await navigator.share({
           title: name || "TripPick",
-          text: `Join our trip on TripPick: ${name}`,
+          text: `Doe mee met onze reis op TripPick: ${name}`,
           url: shareUrl,
         });
       } catch {
@@ -122,7 +124,7 @@ export default function NewTripPage() {
             <div className="size-8" />
           )}
           <div className="flex-1">
-            <div className="text-sm font-semibold">Create a trip</div>
+            <div className="text-sm font-semibold">Reis maken</div>
             <div className="mt-2 flex gap-1.5">
               {STEPS.map((label, i) => (
                 <div
@@ -149,9 +151,9 @@ export default function NewTripPage() {
             {step === 0 && (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-xl font-bold">What kind of trip?</h1>
+                  <h1 className="text-xl font-bold">Wat voor reis?</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Ski trips are ready. More types coming soon.
+                    Skireizen zijn klaar. Meer types volgen binnenkort.
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -186,7 +188,7 @@ export default function NewTripPage() {
                             {type.label}
                             {!type.available && (
                               <Badge variant="secondary" className="text-[10px]">
-                                Coming soon
+                                Binnenkort
                               </Badge>
                             )}
                           </div>
@@ -207,16 +209,16 @@ export default function NewTripPage() {
             {step === 1 && (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-xl font-bold">Trip details</h1>
+                  <h1 className="text-xl font-bold">Reisgegevens</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Give it a name and set the dates.
+                    Geef de reis een naam en kies de data.
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="trip-name">Trip name</Label>
+                  <Label htmlFor="trip-name">Reisnaam</Label>
                   <Input
                     id="trip-name"
-                    placeholder="e.g. Alps 2027"
+                    placeholder="bijv. Alpen 2027"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="h-11"
@@ -224,7 +226,7 @@ export default function NewTripPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <Label htmlFor="start">Start</Label>
+                    <Label htmlFor="start">Begin</Label>
                     <Input
                       id="start"
                       type="date"
@@ -234,7 +236,7 @@ export default function NewTripPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="end">End</Label>
+                    <Label htmlFor="end">Einde</Label>
                     <Input
                       id="end"
                       type="date"
@@ -251,14 +253,14 @@ export default function NewTripPage() {
             {step === 2 && (
               <div className="space-y-4">
                 <div>
-                  <h1 className="text-xl font-bold">Who&apos;s coming?</h1>
+                  <h1 className="text-xl font-bold">Wie gaat er mee?</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Add first names — used for comments and votes.
+                    Voeg voornamen toe — voor reacties en stemmen.
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="First name"
+                    placeholder="Voornaam"
                     value={travelerInput}
                     onChange={(e) => setTravelerInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -294,7 +296,7 @@ export default function NewTripPage() {
                   ))}
                   {travelers.length === 0 && (
                     <p className="text-sm text-muted-foreground">
-                      Add at least one traveler to continue.
+                      Voeg minstens één reisgenoot toe om verder te gaan.
                     </p>
                   )}
                 </div>
@@ -307,30 +309,30 @@ export default function NewTripPage() {
                   <Mountain className="size-7" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">Your trip is ready!</h1>
+                  <h1 className="text-xl font-bold">Je reis is klaar!</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Share this private link with your crew.
+                    Deel deze privélink met je reisgenoten.
                   </p>
                 </div>
                 <div className="rounded-2xl bg-muted/70 p-3 text-left">
                   <div className="mb-1 text-xs font-medium text-muted-foreground">
-                    Share link
+                    Deellink
                   </div>
                   <div className="break-all text-sm font-medium">{shareUrl}</div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Button variant="outline" className="h-11" onClick={copyLink}>
                     <Copy />
-                    Copy
+                    Kopiëren
                   </Button>
                   <Button variant="outline" className="h-11" onClick={shareLink}>
                     <Share2 />
-                    Share
+                    Delen
                   </Button>
                 </div>
                 <Link href={`/trip/${createdToken}`} className="block">
                   <Button className="h-12 w-full rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white hover:from-sky-600 hover:to-indigo-700">
-                    Open trip
+                    Reis openen
                     <ArrowRight />
                   </Button>
                 </Link>
@@ -352,16 +354,16 @@ export default function NewTripPage() {
               {creating ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Creating…
+                  Aanmaken…
                 </>
               ) : step === 2 ? (
                 <>
-                  Create trip
+                  Reis maken
                   <Check />
                 </>
               ) : (
                 <>
-                  Continue
+                  Verder
                   <ArrowRight />
                 </>
               )}

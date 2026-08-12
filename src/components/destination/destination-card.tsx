@@ -75,7 +75,7 @@ export function DestinationCard({
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-sky-400">
             <ImageIcon className="size-10" />
-            <span className="text-sm font-medium">No photos yet</span>
+            <span className="text-sm font-medium">Nog geen foto&apos;s</span>
           </div>
         )}
 
@@ -112,7 +112,7 @@ export function DestinationCard({
         {isWinner && (
           <div className="absolute top-3 left-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-amber-400 px-2.5 py-1 text-xs font-bold text-amber-950 shadow-sm">
             <Trophy className="size-3.5" />
-            Current winner
+            Huidige favoriet
           </div>
         )}
 
@@ -143,13 +143,13 @@ export function DestinationCard({
           {lift.km != null && (
             <Badge variant="secondary" className="gap-1 rounded-full">
               <Route className="size-3" />
-              {formatKm(lift.km)} to lift
+              {formatKm(lift.km)} tot de lift
             </Badge>
           )}
           {lift.km == null && lift.minutes != null && (
             <Badge variant="secondary" className="gap-1 rounded-full">
               <Timer className="size-3" />
-              {lift.minutes} min to lift
+              {lift.minutes} min tot de lift
             </Badge>
           )}
           {lift.km != null && lift.minutes != null && (

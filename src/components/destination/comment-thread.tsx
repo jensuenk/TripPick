@@ -31,7 +31,7 @@ export function CommentThread({
 
   async function send() {
     if (!currentMember) {
-      toast.message("Pick who you are first");
+      toast.message("Kies eerst wie je bent");
       return;
     }
     const text = body.trim();
@@ -47,7 +47,7 @@ export function CommentThread({
         }
       );
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to comment");
+      if (!res.ok) throw new Error(data.error || "Kon reactie niet plaatsen");
 
       const comment = data as ApiComment;
       setTrip({
@@ -68,7 +68,9 @@ export function CommentThread({
       setBody("");
       setExpanded(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed");
+      toast.error(
+        error instanceof Error ? error.message : "Kon niet voltooien"
+      );
     } finally {
       setSending(false);
     }
@@ -84,7 +86,7 @@ export function CommentThread({
         <MessageCircle className="size-4" />
         <span className="font-medium">
           {destination.counts.comments}{" "}
-          {destination.counts.comments === 1 ? "comment" : "comments"}
+          {destination.counts.comments === 1 ? "reactie" : "reacties"}
         </span>
         {!expanded && last && (
           <span className="truncate text-xs">
@@ -97,7 +99,7 @@ export function CommentThread({
         <div className="space-y-3 rounded-2xl bg-muted/40 p-3">
           {destination.comments.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              Be the first to leave a thought.
+              Plaats als eerste een reactie.
             </p>
           )}
           {destination.comments.map((c) => (
@@ -127,7 +129,7 @@ export function CommentThread({
             <Textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Write a comment…"
+              placeholder="Schrijf een reactie…"
               rows={2}
               className="min-h-0 resize-none"
             />

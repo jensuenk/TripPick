@@ -74,7 +74,7 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
     const res = await fetch(`/api/trips/${token}`);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || "Trip not found");
+      throw new Error(data.error || "Reis niet gevonden");
     }
     const data = (await res.json()) as ApiTrip;
     setTrip(data);
@@ -92,7 +92,9 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
         if (member) setCurrentMemberState(member);
         else setPickerOpen(true);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Failed to load");
+        toast.error(
+          error instanceof Error ? error.message : "Kon niet laden"
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -156,12 +158,12 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center gradient-hero">
         <Mountain className="size-12 text-sky-400" />
-        <h1 className="text-xl font-bold">Trip not found</h1>
+        <h1 className="text-xl font-bold">Reis niet gevonden</h1>
         <p className="text-sm text-muted-foreground">
-          This link may be invalid or the trip was removed.
+          Deze link is ongeldig of de reis is verwijderd.
         </p>
         <Link href="/">
-          <Button>Back home</Button>
+          <Button>Terug naar home</Button>
         </Link>
       </div>
     );
@@ -194,11 +196,13 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Users className="size-3.5" />
-                  {trip.members.length} travelers
+                  {trip.members.length} reisgenoten
                 </span>
                 <span>
-                  {trip.destinations.length} destination
-                  {trip.destinations.length === 1 ? "" : "s"}
+                  {trip.destinations.length}{" "}
+                  {trip.destinations.length === 1
+                    ? "bestemming"
+                    : "bestemmingen"}
                 </span>
               </div>
               <div className="mt-2 flex items-center gap-2">
@@ -227,14 +231,14 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
                       {currentMember.firstName}
                     </>
                   ) : (
-                    "Pick who you are"
+                    "Kies wie je bent"
                   )}
                 </button>
                 <Button
                   size="icon-sm"
                   variant="ghost"
                   onClick={() =>
-                    void refresh().then(() => toast.success("Refreshed"))
+                    void refresh().then(() => toast.success("Vernieuwd"))
                   }
                 >
                   <RefreshCw />
@@ -254,10 +258,10 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
               <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-500">
                 <Mountain className="size-8" />
               </div>
-              <h2 className="text-xl font-bold">No destinations yet</h2>
+              <h2 className="text-xl font-bold">Nog geen bestemmingen</h2>
               <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                Add the first chalet, apartment, or hotel option so everyone can
-                start voting.
+                Voeg de eerste chalet-, appartement- of hoteloptie toe zodat
+                iedereen kan beginnen stemmen.
               </p>
               <Button
                 className="mt-6 h-11 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
@@ -271,7 +275,7 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
                 }}
               >
                 <Plus />
-                Add destination
+                Bestemming toevoegen
               </Button>
             </motion.div>
           ) : (
@@ -308,7 +312,7 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
             }}
           >
             <Plus className="size-5" />
-            Add destination
+            Bestemming toevoegen
           </Button>
         </div>
 
@@ -318,7 +322,7 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
           allowDismiss={Boolean(currentMember)}
           onOpenChange={setPickerOpen}
           onSelect={setCurrentMember}
-          title={currentMember ? "Switch traveler" : "Who are you?"}
+          title={currentMember ? "Wissel van persoon" : "Wie ben jij?"}
         />
 
         <DestinationWizard

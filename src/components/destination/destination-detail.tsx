@@ -1,7 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { CommentThread } from "@/components/destination/comment-thread";
+import { ReactionBar } from "@/components/destination/reaction-bar";
+import { SkiResortSummary } from "@/components/destination/ski-resort-summary";
+import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
+import { MemberAvatar } from "@/components/shared/member-avatar";
+import { useTrip } from "@/components/trip/trip-context";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import {
+  bedTypeMeta,
+  formatKm,
+  formatPrice,
+  getLiftAccess,
+} from "@/lib/format";
+import type { ApiDestination } from "@/lib/trip-data";
+import { cn } from "@/lib/utils";
 import {
   Bath,
   BedDouble,
@@ -13,29 +34,8 @@ import {
   Timer,
   X,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
-import { MemberAvatar } from "@/components/shared/member-avatar";
-import { ReactionBar } from "@/components/destination/reaction-bar";
-import { CommentThread } from "@/components/destination/comment-thread";
-import { SkiResortSummary } from "@/components/destination/ski-resort-summary";
-import { useTrip } from "@/components/trip/trip-context";
-import type { ApiDestination } from "@/lib/trip-data";
-import {
-  bedTypeMeta,
-  formatKm,
-  formatPrice,
-  getLiftAccess,
-} from "@/lib/format";
-import { cn } from "@/lib/utils";
+import Image from "next/image";
+import { useState } from "react";
 
 type Props = {
   destination: ApiDestination | null;
@@ -130,7 +130,7 @@ export function DestinationDetail({
                     size="sm"
                   />
                   <span className="truncate">
-                    Added by{" "}
+                    Toegevoegd door{" "}
                     <span className="font-medium text-foreground">
                       {creator.firstName}
                     </span>
@@ -146,7 +146,7 @@ export function DestinationDetail({
                   >
                     <Button size="sm" className="rounded-full">
                       <ExternalLink />
-                      Booking
+                      Website bezoeken
                     </Button>
                   </a>
                 )}
@@ -157,7 +157,7 @@ export function DestinationDetail({
                   onClick={onEdit}
                 >
                   <Pencil />
-                  Edit
+                  Bewerken
                 </Button>
               </div>
             </div>
@@ -174,25 +174,27 @@ export function DestinationDetail({
               {lift.km != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Route className="size-3" />
-                  {formatKm(lift.km)} to lift
+                  {formatKm(lift.km)} tot de lift
                 </Badge>
               )}
               {lift.minutes != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Timer className="size-3" />
-                  ~{lift.minutes} min drive
+                  ~{lift.minutes} min rijden
                 </Badge>
               )}
               {destination.bedrooms != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <BedDouble className="size-3" />
-                  {destination.bedrooms} bedrooms
+                  {destination.bedrooms}{" "}
+                  {destination.bedrooms === 1 ? "slaapkamer" : "slaapkamers"}
                 </Badge>
               )}
               {destination.bathrooms != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Bath className="size-3" />
-                  {destination.bathrooms} baths
+                  {destination.bathrooms}{" "}
+                  {destination.bathrooms === 1 ? "badkamer" : "badkamers"}
                 </Badge>
               )}
               {destination.beds.map((bed, i) => {
@@ -222,7 +224,7 @@ export function DestinationDetail({
                 {destination.pros.length > 0 && (
                   <div>
                     <div className="mb-2 text-xs font-semibold tracking-wide text-emerald-700 uppercase">
-                      Positives
+                      Pluspunten
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {destination.pros.map((p) => (
@@ -239,7 +241,7 @@ export function DestinationDetail({
                 {destination.cons.length > 0 && (
                   <div>
                     <div className="mb-2 text-xs font-semibold tracking-wide text-rose-700 uppercase">
-                      Negatives
+                      Minpunten
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {destination.cons.map((c) => (
@@ -258,7 +260,7 @@ export function DestinationDetail({
 
             {photos.length > 1 && (
               <div>
-                <div className="mb-2 text-sm font-semibold">Gallery</div>
+                <div className="mb-2 text-sm font-semibold">Galerij</div>
                 <div className="grid grid-cols-3 gap-2">
                   {photos.map((img) => (
                     <button
@@ -282,7 +284,7 @@ export function DestinationDetail({
 
             {destination.lat != null && destination.lng != null && (
               <div>
-                <div className="mb-2 text-sm font-semibold">Location</div>
+                <div className="mb-2 text-sm font-semibold">Locatie</div>
                 <MapPreviewDynamic
                   lat={destination.lat}
                   lng={destination.lng}
@@ -293,7 +295,7 @@ export function DestinationDetail({
 
             {(skiMaps.length > 0 || Boolean(skiArea)) && (
               <div className="space-y-3">
-                <div className="text-sm font-semibold">About the ski area</div>
+                <div className="text-sm font-semibold">Over het skigebied</div>
                 {skiMaps.length > 0 && (
                   <div className="grid gap-2">
                     {skiMaps.map((img) => (
@@ -305,7 +307,7 @@ export function DestinationDetail({
                       >
                         <Image
                           src={img.blobUrl}
-                          alt="Ski map"
+                          alt="Skikaart"
                           fill
                           className="object-contain bg-white"
                           unoptimized={img.blobUrl.startsWith("/")}
@@ -319,14 +321,14 @@ export function DestinationDetail({
             )}
 
             <div>
-              <div className="mb-2 text-sm font-semibold">Votes</div>
+              <div className="mb-2 text-sm font-semibold">Stemmen</div>
               <div className="space-y-2">
                 {(
                   [
-                    ["favorite", "❤️ Favorites", byKind.favorite],
-                    ["like", "👍 Like", byKind.like],
-                    ["maybe", "🤔 Maybe", byKind.maybe],
-                    ["no", "👎 No", byKind.no],
+                    ["favorite", "❤️ Favorieten", byKind.favorite],
+                    ["like", "👍 Leuk", byKind.like],
+                    ["maybe", "🤔 Misschien", byKind.maybe],
+                    ["no", "👎 Nee", byKind.no],
                   ] as const
                 ).map(([key, label, list]) => (
                   <div

@@ -22,19 +22,19 @@ export async function POST(request: Request, { params }: Params) {
       .from(trips)
       .where(eq(trips.token, token))
       .limit(1);
-    if (!trip) return jsonError("Trip not found", 404);
+    if (!trip) return jsonError("Reis niet gevonden", 404);
 
     const [dest] = await db
       .select()
       .from(destinations)
       .where(and(eq(destinations.id, id), eq(destinations.tripId, trip.id)))
       .limit(1);
-    if (!dest) return jsonError("Destination not found", 404);
+    if (!dest) return jsonError("Bestemming niet gevonden", 404);
 
     const details = (dest.typeDetails ?? {}) as DestinationTypeDetails;
     const skiArea = details.skiArea?.trim();
     if (!skiArea) {
-      return jsonError("Add a ski area name first to generate a summary", 400);
+      return jsonError("Voeg eerst een skigebied toe om een samenvatting te genereren", 400);
     }
 
     const cacheValid =

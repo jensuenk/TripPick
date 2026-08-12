@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Nunito } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { SiteFooter } from "@/components/shared/site-footer";
 import "./globals.css";
 
 const display = Fraunces({
@@ -19,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · TripPick",
   },
   description:
-    "Pick the perfect trip destination together. Share options, vote, and chat with family and friends.",
+    "Kies samen de perfecte vakantiebestemming. Deel opties, stem en chat met familie en vrienden.",
   applicationName: "TripPick",
   appleWebApp: {
     capable: true,
@@ -48,11 +49,12 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="nl"
       className={`${display.variable} ${body.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col bg-background font-sans text-foreground">
-        {children}
+        <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        <SiteFooter />
         <Toaster richColors position="top-center" />
       </body>
     </html>
