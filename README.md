@@ -29,8 +29,8 @@ cp .env.example .env.local
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | Yes | Neon connection string |
-| `BLOB_READ_WRITE_TOKEN` | Prod | From Vercel Blob store |
-| `NEXT_PUBLIC_USE_BLOB` | Prod | Set `true` when using Blob client uploads |
+| `BLOB_READ_WRITE_TOKEN` | Prod / local Blob | Static Blob token (also works with `BLOB_STORE_ID` + OIDC on Vercel) |
+| `NEXT_PUBLIC_USE_BLOB` | Optional | Unused by uploads now (server detects Blob automatically) |
 | `OPENAI_API_KEY` | For AI features | Ski resort overviews + booking URL import (Airbnb/Booking scrape) |
 
 ### 3. Database
@@ -57,7 +57,8 @@ Local photo uploads go to `public/uploads` when Blob is not configured.
 
 1. Push this repo to GitHub.
 2. Import the project in Vercel.
-3. Add env vars: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `NEXT_PUBLIC_USE_BLOB=true`.
+3. Add env vars: `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN` (or Blob store linked so OIDC + `BLOB_STORE_ID` are set), `OPENAI_API_KEY`.
+4. Blob store access should be **Public** so destination photos load in the browser.
 4. Create a Blob store in the Vercel project (Storage → Blob).
 5. Run `npm run db:push` once against production `DATABASE_URL` (or apply `drizzle/0000_init.sql`).
 6. Deploy.

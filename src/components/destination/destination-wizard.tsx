@@ -930,6 +930,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                                   src={img.blobUrl}
                                   alt=""
                                   fill
+                                  sizes="33vw"
                                   className="object-cover"
                                   unoptimized={shouldUnoptimizeImage(
                                     img.blobUrl

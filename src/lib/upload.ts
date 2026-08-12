@@ -40,25 +40,18 @@ export async function compressImage(
   }
 }
 
+/** Always upload via our API (server puts to Vercel Blob when configured). */
 export async function uploadImage(file: File): Promise<string> {
   const compressed = await compressImage(file);
-
-  if (process.env.NEXT_PUBLIC_USE_BLOB === "true") {
-    const { upload } = await import("@vercel/blob/client");
-    const result = await upload(compressed.name, compressed, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-    });
-    return result.url;
-  }
-
-  // Local multipart fallback (no Blob token)
   const form = new FormData();
   form.append("file", compressed);
+
   const res = await fetch("/api/upload", { method: "POST", body: form });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || "Upload mislukt");
+    throw new Error(
+      typeof data.error === "string" ? data.error : "Upload mislukt"
+    );
   }
   const data = (await res.json()) as { url: string };
   return data.url;

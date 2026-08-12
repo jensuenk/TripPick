@@ -112,6 +112,8 @@ export function DestinationDetail({
                   src={photos[0].blobUrl}
                   alt={destination.name}
                   fill
+                  priority
+                  sizes="(max-width:768px) 100vw, 672px"
                   className="object-cover"
                   unoptimized={shouldUnoptimizeImage(photos[0].blobUrl)}
                   referrerPolicy={imageReferrerPolicy(photos[0].blobUrl)}
@@ -319,6 +321,7 @@ export function DestinationDetail({
                         src={galleryPhoto.blobUrl}
                         alt=""
                         fill
+                        sizes="(max-width:768px) 100vw, 672px"
                         className="object-cover"
                         unoptimized={shouldUnoptimizeImage(
                           galleryPhoto.blobUrl
@@ -366,6 +369,7 @@ export function DestinationDetail({
                           src={img.blobUrl}
                           alt=""
                           fill
+                          sizes="56px"
                           className="object-cover"
                           unoptimized={shouldUnoptimizeImage(img.blobUrl)}
                           referrerPolicy={imageReferrerPolicy(img.blobUrl)}
@@ -404,6 +408,7 @@ export function DestinationDetail({
                           src={img.blobUrl}
                           alt="Skikaart"
                           fill
+                          sizes="(max-width:768px) 100vw, 672px"
                           className="object-contain bg-white"
                           unoptimized={shouldUnoptimizeImage(img.blobUrl)}
                           referrerPolicy={imageReferrerPolicy(img.blobUrl)}

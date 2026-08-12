@@ -70,6 +70,7 @@ export function DestinationCard({
             fill
             className="object-cover"
             sizes="(max-width:768px) 100vw, 400px"
+            priority={index === 0}
             unoptimized={shouldUnoptimizeImage(current.blobUrl)}
             referrerPolicy={imageReferrerPolicy(current.blobUrl)}
           />
