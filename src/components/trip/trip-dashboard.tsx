@@ -1,0 +1,301 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  CalendarDays,
+  Loader2,
+  Mountain,
+  Plus,
+  RefreshCw,
+  Users,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { MemberAvatar } from "@/components/shared/member-avatar";
+import { MemberPicker } from "@/components/trip/member-picker";
+import { TripContext } from "@/components/trip/trip-context";
+import { DestinationCard } from "@/components/destination/destination-card";
+import { DestinationWizard } from "@/components/destination/destination-wizard";
+import { DestinationDetail } from "@/components/destination/destination-detail";
+import type { ApiMember, ApiTrip } from "@/lib/trip-data";
+import {
+  getStoredMemberId,
+  setStoredMemberId,
+} from "@/lib/member-storage";
+import { formatDateRange } from "@/lib/format";
+
+type Props = {
+  token: string;
+  initialDestinationId?: string | null;
+};
+
+export function TripDashboard({ token, initialDestinationId }: Props) {
+  const router = useRouter();
+  const [trip, setTrip] = useState<ApiTrip | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentMember, setCurrentMemberState] = useState<ApiMember | null>(
+    null
+  );
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [editing, setEditing] = useState<ApiTrip["destinations"][number] | null>(
+    null
+  );
+  const [detailId, setDetailId] = useState<string | null>(
+    initialDestinationId ?? null
+  );
+
+  const refresh = useCallback(async () => {
+    const res = await fetch(`/api/trips/${token}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "Trip not found");
+    }
+    const data = (await res.json()) as ApiTrip;
+    setTrip(data);
+    return data;
+  }, [token]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await refresh();
+        if (cancelled) return;
+        const stored = getStoredMemberId(token);
+        const member = data.members.find((m) => m.id === stored) ?? null;
+        if (member) setCurrentMemberState(member);
+        else setPickerOpen(true);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to load");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [refresh, token]);
+
+  function setCurrentMember(member: ApiMember | null) {
+    setCurrentMemberState(member);
+    if (member) {
+      setStoredMemberId(token, member.id);
+      setPickerOpen(false);
+    }
+  }
+
+  const detail =
+    trip?.destinations.find((d) => d.id === detailId) ?? null;
+
+  if (loading) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center gradient-hero">
+        <Loader2 className="size-8 animate-spin text-sky-600" />
+      </div>
+    );
+  }
+
+  if (!trip) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center gradient-hero">
+        <Mountain className="size-12 text-sky-400" />
+        <h1 className="text-xl font-bold">Trip not found</h1>
+        <p className="text-sm text-muted-foreground">
+          This link may be invalid or the trip was removed.
+        </p>
+        <Link href="/">
+          <Button>Back home</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <TripContext.Provider
+      value={{
+        trip,
+        currentMember,
+        setCurrentMember,
+        refresh: async () => {
+          await refresh();
+        },
+        setTrip,
+      }}
+    >
+      <main className="min-h-dvh bg-[oklch(0.975_0.012_230)] pb-28">
+        <header className="sticky top-0 z-30 border-b border-sky-100/80 bg-white/85 backdrop-blur-md">
+          <div className="mx-auto flex max-w-5xl items-start gap-3 px-4 py-4">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
+              <Mountain className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-lg font-bold">{trip.name}</h1>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="size-3.5" />
+                  {formatDateRange(trip.startDate, trip.endDate)}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <Users className="size-3.5" />
+                  {trip.members.length} travelers
+                </span>
+                <span>
+                  {trip.destinations.length} destination
+                  {trip.destinations.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <div className="flex -space-x-2">
+                  {trip.members.map((m) => (
+                    <MemberAvatar
+                      key={m.id}
+                      name={m.firstName}
+                      color={m.avatarColor}
+                      size="sm"
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPickerOpen(true)}
+                  className="ml-auto inline-flex items-center gap-2 rounded-full bg-sky-50 py-1 pr-3 pl-1 text-xs font-semibold text-sky-700 ring-1 ring-sky-100"
+                >
+                  {currentMember ? (
+                    <>
+                      <MemberAvatar
+                        name={currentMember.firstName}
+                        color={currentMember.avatarColor}
+                        size="sm"
+                      />
+                      {currentMember.firstName}
+                    </>
+                  ) : (
+                    "Pick who you are"
+                  )}
+                </button>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  onClick={() =>
+                    void refresh().then(() => toast.success("Refreshed"))
+                  }
+                >
+                  <RefreshCw />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto max-w-5xl px-4 py-5">
+          {trip.destinations.length === 0 ? (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex flex-col items-center rounded-3xl bg-white/80 px-6 py-16 text-center shadow-sm ring-1 ring-sky-100"
+            >
+              <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-500">
+                <Mountain className="size-8" />
+              </div>
+              <h2 className="text-xl font-bold">No destinations yet</h2>
+              <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+                Add the first chalet, apartment, or hotel option so everyone can
+                start voting.
+              </p>
+              <Button
+                className="mt-6 h-11 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
+                onClick={() => {
+                  if (!currentMember) {
+                    setPickerOpen(true);
+                    return;
+                  }
+                  setEditing(null);
+                  setWizardOpen(true);
+                }}
+              >
+                <Plus />
+                Add destination
+              </Button>
+            </motion.div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {trip.destinations.map((dest, i) => (
+                <motion.div
+                  key={dest.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04 }}
+                >
+                  <DestinationCard
+                    destination={dest}
+                    onOpen={() => {
+                      setDetailId(dest.id);
+                      router.replace(`/trip/${token}/d/${dest.id}`, {
+                        scroll: false,
+                      });
+                    }}
+                  />
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="fixed right-4 bottom-4 z-40 safe-pb">
+          <Button
+            size="lg"
+            className="h-14 rounded-full bg-gradient-to-r from-sky-500 to-indigo-600 px-5 text-base text-white shadow-xl shadow-sky-500/35"
+            onClick={() => {
+              if (!currentMember) {
+                setPickerOpen(true);
+                return;
+              }
+              setEditing(null);
+              setWizardOpen(true);
+            }}
+          >
+            <Plus className="size-5" />
+            Add destination
+          </Button>
+        </div>
+
+        <MemberPicker
+          open={pickerOpen}
+          members={trip.members}
+          allowDismiss={Boolean(currentMember)}
+          onOpenChange={setPickerOpen}
+          onSelect={setCurrentMember}
+          title={currentMember ? "Switch traveler" : "Who are you?"}
+        />
+
+        <DestinationWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          destination={editing}
+        />
+
+        <DestinationDetail
+          destination={detail}
+          open={Boolean(detail)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDetailId(null);
+              router.replace(`/trip/${token}`, { scroll: false });
+            }
+          }}
+          onEdit={() => {
+            if (!detail) return;
+            setEditing(detail);
+            setDetailId(null);
+            router.replace(`/trip/${token}`, { scroll: false });
+            setWizardOpen(true);
+          }}
+        />
+      </main>
+    </TripContext.Provider>
+  );
+}
