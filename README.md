@@ -68,7 +68,7 @@ Hobby Vercel is free for non-commercial / family use.
 ## App flows
 
 1. **Landing** → Create a trip
-2. **Wizard** → type (ski) → name & dates → travelers → share link
+2. **Wizard** → type → name & dates → travelers → share link
 3. **Trip dashboard** `/trip/[token]` → pick who you are → browse destination cards
 4. **Add destination** → multi-step form (basics, beds, ski info, pros/cons, photos)
 5. **Vote** with heart / like / maybe / no and comment under each card
