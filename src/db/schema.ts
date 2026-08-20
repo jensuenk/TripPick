@@ -23,6 +23,14 @@ export type NearbyLift = {
   km: number;
 };
 
+export type NearbyPlace = {
+  name: string;
+  /** Distance from accommodation in kilometers */
+  km: number;
+  /** Optional IATA airport code */
+  code?: string;
+};
+
 export type SkiTypeDetails = {
   skiArea?: string;
   /** Distance to nearest lift in kilometers (derived from nearbyLifts when saving) */
@@ -37,7 +45,33 @@ export type SkiTypeDetails = {
   skiResortSummaryVersion?: number;
 };
 
-export type DestinationTypeDetails = SkiTypeDetails & Record<string, unknown>;
+export type SummerTypeDetails = {
+  /** Per-accommodation stay window (YYYY-MM-DD) */
+  checkIn?: string;
+  checkOut?: string;
+  nights?: number;
+  tags?: string[];
+  /** Package deal: airfare is included in the stay price */
+  flightIncluded?: boolean;
+  nearbyAirports?: NearbyPlace[];
+  nearbyBeaches?: NearbyPlace[];
+  nearbyCities?: NearbyPlace[];
+  activities?: string[];
+  climate?: string;
+  summerOverview?: string;
+  summerOverviewGeneratedAt?: string;
+  summerOverviewVersion?: number;
+  flightHint?: {
+    hours?: number;
+    priceMinEuros?: number;
+    priceMaxEuros?: number;
+    note?: string;
+  };
+};
+
+export type DestinationTypeDetails = SkiTypeDetails &
+  SummerTypeDetails &
+  Record<string, unknown>;
 
 export const trips = pgTable("trips", {
   id: uuid("id").defaultRandom().primaryKey(),

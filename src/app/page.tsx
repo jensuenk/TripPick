@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
-import { ArrowRight, Heart, Mountain, Sparkles, Users } from "lucide-react";
+import { ArrowRight, Heart, Mountain, Palmtree, Sparkles, Users } from "lucide-react";
 import Link from "next/link";
 
 export default function LandingPage() {
@@ -58,7 +58,7 @@ export default function LandingPage() {
         >
           Kies samen de perfecte{" "}
           <span className="bg-gradient-to-r from-sky-600 to-indigo-600 bg-clip-text text-transparent">
-            skibestemming
+            familiebestemming
           </span>
         </motion.h1>
 
@@ -69,7 +69,8 @@ export default function LandingPage() {
           className="mt-5 max-w-xl text-base text-muted-foreground text-pretty sm:text-lg"
         >
           Verzamel bestemmingen, deel een privélink met je groep,
-          vergelijk en stem samen tot iedereen akkoord is.
+          vergelijk ski- of zomervakanties en stem samen tot iedereen
+          akkoord is.
         </motion.p>
 
         <motion.div
@@ -107,9 +108,9 @@ export default function LandingPage() {
               text: "Leuk, misschien of nee — zie wat de groep wil.",
             },
             {
-              icon: Mountain,
-              title: "Ski-klare kaarten",
-              text: "Foto's, liften, bedden, prijzen — in één oogopslag.",
+              icon: Palmtree,
+              title: "Ski én zomer",
+              text: "Liften, stranden, vluchten en prijzen — in één oogopslag.",
             },
           ].map((item) => (
             <div

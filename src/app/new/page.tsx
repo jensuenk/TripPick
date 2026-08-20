@@ -11,6 +11,7 @@ import {
   Copy,
   Loader2,
   Mountain,
+  Palmtree,
   Plus,
   Share2,
   X,
@@ -41,7 +42,7 @@ export default function NewTripPage() {
   const [createdToken, setCreatedToken] = useState("");
 
   const canNext = useMemo(() => {
-    if (step === 0) return tripType === "ski";
+    if (step === 0) return tripType === "ski" || tripType === "summer";
     if (step === 1) return name.trim().length > 0 && !!startDate && !!endDate;
     if (step === 2) return travelers.length > 0;
     return true;
@@ -152,8 +153,9 @@ export default function NewTripPage() {
               <div className="space-y-4">
                 <div>
                   <h1 className="text-xl font-bold">Wat voor reis?</h1>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Skireizen zijn klaar. Meer types volgen binnenkort.
+          <p className="mt-1 text-sm text-muted-foreground">
+                    Ski- en zomervakanties zijn klaar. Meer types volgen
+                    binnenkort.
                   </p>
                 </div>
                 <div className="grid gap-3">
@@ -211,14 +213,18 @@ export default function NewTripPage() {
                 <div>
                   <h1 className="text-xl font-bold">Reisgegevens</h1>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Geef de reis een naam en kies de data.
+                    Geef de reis een naam en kies de globale periode. Bij een
+                    zomervakantie kan elke accommodatie later eigen data
+                    krijgen.
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="trip-name">Reisnaam</Label>
                   <Input
                     id="trip-name"
-                    placeholder="bijv. Alpen 2027"
+                    placeholder={
+                      tripType === "summer" ? "bijv. Mallorca 2026" : "bijv. Alpen 2027"
+                    }
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="h-11"
@@ -306,7 +312,11 @@ export default function NewTripPage() {
             {step === 3 && (
               <div className="space-y-5 text-center">
                 <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/30">
-                  <Mountain className="size-7" />
+                  {tripType === "summer" ? (
+                    <Palmtree className="size-7" />
+                  ) : (
+                    <Mountain className="size-7" />
+                  )}
                 </div>
                 <div>
                   <h1 className="text-xl font-bold">Je reis is klaar!</h1>

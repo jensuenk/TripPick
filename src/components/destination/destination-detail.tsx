@@ -3,6 +3,7 @@
 import { CommentThread } from "@/components/destination/comment-thread";
 import { ReactionBar } from "@/components/destination/reaction-bar";
 import { SkiResortSummary } from "@/components/destination/ski-resort-summary";
+import { SummerOverview } from "@/components/destination/summer-overview";
 import { MapPreviewDynamic } from "@/components/shared/map-dynamic";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useTrip } from "@/components/trip/trip-context";
@@ -19,19 +20,29 @@ import {
   bedTypeMeta,
   formatKm,
   formatPrice,
+  formatPricePerNight,
   getLiftAccess,
 } from "@/lib/format";
+import {
+  estimateTransferMinutes,
+  formatStayRange,
+  nightsBetween,
+} from "@/lib/summer";
 import type { ApiDestination } from "@/lib/trip-data";
 import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import {
   Bath,
   BedDouble,
+  Building2,
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   MapPin,
   Mountain,
+  Palmtree,
   Pencil,
+  Plane,
   Route,
   Timer,
   X,
@@ -53,12 +64,49 @@ export function DestinationDetail({
   onEdit,
 }: Props) {
   const { trip } = useTrip();
-  const [lightbox, setLightbox] = useState<string | null>(null);
+  const isSummer = trip.type === "summer";
+  const [lightbox, setLightbox] = useState<{
+    source: "photos" | "skimaps";
+    images: { id: string; blobUrl: string }[];
+    index: number;
+  } | null>(null);
   const [galleryIndex, setGalleryIndex] = useState(0);
 
   useEffect(() => {
     setGalleryIndex(0);
+    setLightbox(null);
   }, [destination?.id, open]);
+
+  function stepLightbox(delta: number) {
+    setLightbox((current) => {
+      if (!current || current.images.length < 2) return current;
+      const next =
+        (current.index + delta + current.images.length) % current.images.length;
+      if (current.source === "photos") setGalleryIndex(next);
+      return { ...current, index: next };
+    });
+  }
+
+  useEffect(() => {
+    if (!lightbox) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setLightbox(null);
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        stepLightbox(-1);
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        stepLightbox(1);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightbox]);
 
   if (!destination) return null;
 
@@ -72,6 +120,17 @@ export function DestinationDetail({
   const nearbyLifts = Array.isArray(destination.typeDetails?.nearbyLifts)
     ? destination.typeDetails.nearbyLifts
     : [];
+  const checkIn = destination.typeDetails?.checkIn;
+  const checkOut = destination.typeDetails?.checkOut;
+  const nights =
+    destination.typeDetails?.nights ?? nightsBetween(checkIn, checkOut);
+  const stay = formatStayRange(checkIn, checkOut);
+  const perNight = formatPricePerNight(destination.priceTotalCents, nights);
+  const tags = destination.typeDetails?.tags ?? [];
+  const flightIncluded = Boolean(destination.typeDetails?.flightIncluded);
+  const nearbyAirports = destination.typeDetails?.nearbyAirports ?? [];
+  const nearbyBeaches = destination.typeDetails?.nearbyBeaches ?? [];
+  const nearbyCities = destination.typeDetails?.nearbyCities ?? [];
   const creator = trip.members.find(
     (m) => m.id === destination.createdByMemberId,
   );
@@ -106,7 +165,13 @@ export function DestinationDetail({
               <button
                 type="button"
                 className="absolute inset-0 block"
-                onClick={() => setLightbox(photos[0].blobUrl)}
+                onClick={() =>
+                  setLightbox({
+                    source: "photos",
+                    images: photos,
+                    index: 0,
+                  })
+                }
               >
                 <Image
                   src={photos[0].blobUrl}
@@ -140,8 +205,19 @@ export function DestinationDetail({
                   )}
                 </div>
                 {price && (
-                  <span className="shrink-0 rounded-full bg-white/95 px-3 py-1 text-sm font-bold text-sky-700 shadow-sm">
+                  <span className="shrink-0 rounded-full bg-white/95 px-3 py-1 text-right text-sm font-bold text-sky-700 shadow-sm">
                     {price}
+                    {isSummer && perNight && (
+                      <span className="block text-[10px] font-medium text-muted-foreground">
+                        {perNight}
+                        {flightIncluded ? " · incl. vlucht" : ""}
+                      </span>
+                    )}
+                    {isSummer && flightIncluded && !perNight && (
+                      <span className="block text-[10px] font-medium text-teal-700">
+                        incl. vlucht
+                      </span>
+                    )}
                   </span>
                 )}
               </div>
@@ -193,19 +269,34 @@ export function DestinationDetail({
             <ReactionBar destination={destination} />
 
             <div className="flex flex-wrap gap-2">
-              {skiArea && (
+              {isSummer && stay && (
+                <Badge variant="secondary" className="gap-1 rounded-full">
+                  <CalendarDays className="size-3" />
+                  {stay}
+                  {nights != null
+                    ? ` · ${nights} ${nights === 1 ? "nacht" : "nachten"}`
+                    : ""}
+                </Badge>
+              )}
+              {isSummer && flightIncluded && (
+                <Badge className="gap-1 rounded-full bg-teal-600 text-white hover:bg-teal-600">
+                  <Plane className="size-3" />
+                  Vlucht inbegrepen
+                </Badge>
+              )}
+              {!isSummer && skiArea && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Mountain className="size-3" />
                   {skiArea}
                 </Badge>
               )}
-              {lift.km != null && (
+              {!isSummer && lift.km != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Route className="size-3" />
                   {formatKm(lift.km)} tot de lift
                 </Badge>
               )}
-              {lift.minutes != null && (
+              {!isSummer && lift.minutes != null && (
                 <Badge variant="secondary" className="gap-1 rounded-full">
                   <Timer className="size-3" />
                   ~{lift.minutes} min rijden
@@ -239,9 +330,49 @@ export function DestinationDetail({
                   </Badge>
                 );
               })}
+              {isSummer &&
+                tags.map((tag) => (
+                  <Badge key={tag} variant="secondary" className="rounded-full">
+                    {tag}
+                  </Badge>
+                ))}
             </div>
 
-            {nearbyLifts.length > 0 && (
+            {isSummer &&
+              (nearbyAirports.length > 0 ||
+                nearbyBeaches.length > 0 ||
+                nearbyCities.length > 0) && (
+                <div className="grid gap-3">
+                  {nearbyAirports.length > 0 && (
+                    <NearbyList
+                      title="Luchthavens"
+                      icon={Plane}
+                      places={nearbyAirports}
+                      extra={(p) =>
+                        estimateTransferMinutes(p.km) != null
+                          ? `~${estimateTransferMinutes(p.km)} min transfer`
+                          : null
+                      }
+                    />
+                  )}
+                  {nearbyBeaches.length > 0 && (
+                    <NearbyList
+                      title="Stranden"
+                      icon={Palmtree}
+                      places={nearbyBeaches}
+                    />
+                  )}
+                  {nearbyCities.length > 0 && (
+                    <NearbyList
+                      title="Steden"
+                      icon={Building2}
+                      places={nearbyCities}
+                    />
+                  )}
+                </div>
+              )}
+
+            {!isSummer && nearbyLifts.length > 0 && (
               <div className="rounded-2xl bg-muted/40 px-3.5 py-3">
                 <div className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Nabije skiliften
@@ -315,7 +446,13 @@ export function DestinationDetail({
                     <button
                       type="button"
                       className="relative block aspect-[16/10] w-full"
-                      onClick={() => setLightbox(galleryPhoto.blobUrl)}
+                      onClick={() =>
+                        setLightbox({
+                          source: "photos",
+                          images: photos,
+                          index: safeGalleryIndex,
+                        })
+                      }
                     >
                       <Image
                         src={galleryPhoto.blobUrl}
@@ -392,17 +529,30 @@ export function DestinationDetail({
               </div>
             )}
 
-            {(skiMaps.length > 0 || Boolean(skiArea)) && (
+            {isSummer && (
+              <div className="space-y-3">
+                <div className="text-sm font-semibold">Over de bestemming</div>
+                <SummerOverview destination={destination} />
+              </div>
+            )}
+
+            {!isSummer && (skiMaps.length > 0 || Boolean(skiArea)) && (
               <div className="space-y-3">
                 <div className="text-sm font-semibold">Over het skigebied</div>
                 {skiMaps.length > 0 && (
                   <div className="grid gap-2">
-                    {skiMaps.map((img) => (
+                    {skiMaps.map((img, mapIndex) => (
                       <button
                         key={img.id}
                         type="button"
                         className="relative aspect-[4/3] overflow-hidden rounded-2xl ring-1 ring-sky-100"
-                        onClick={() => setLightbox(img.blobUrl)}
+                        onClick={() =>
+                          setLightbox({
+                            source: "skimaps",
+                            images: skiMaps,
+                            index: mapIndex,
+                          })
+                        }
                       >
                         <Image
                           src={img.blobUrl}
@@ -461,28 +611,104 @@ export function DestinationDetail({
         </DialogContent>
       </Dialog>
 
-      {lightbox && (
+      {lightbox && lightbox.images[lightbox.index] && (
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
           onClick={() => setLightbox(null)}
         >
           <button
             type="button"
-            className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white"
+            aria-label="Sluiten"
+            className="absolute top-4 right-4 z-10 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
             onClick={() => setLightbox(null)}
           >
             <X />
           </button>
+
+          {lightbox.images.length > 1 && (
+            <>
+              <button
+                type="button"
+                aria-label="Vorige foto"
+                className="absolute top-1/2 left-3 z-10 flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:left-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepLightbox(-1);
+                }}
+              >
+                <ChevronLeft className="size-7" />
+              </button>
+              <button
+                type="button"
+                aria-label="Volgende foto"
+                className="absolute top-1/2 right-3 z-10 flex size-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25 sm:right-6"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  stepLightbox(1);
+                }}
+              >
+                <ChevronRight className="size-7" />
+              </button>
+              <div className="pointer-events-none absolute bottom-5 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/50 px-3 py-1 text-sm font-medium text-white">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </div>
+            </>
+          )}
+
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={lightbox}
+            src={lightbox.images[lightbox.index].blobUrl}
             alt=""
             className={cn("max-h-full max-w-full object-contain")}
-            referrerPolicy={imageReferrerPolicy(lightbox)}
+            referrerPolicy={imageReferrerPolicy(
+              lightbox.images[lightbox.index].blobUrl
+            )}
             onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
     </>
+  );
+}
+
+function NearbyList({
+  title,
+  icon: Icon,
+  places,
+  extra,
+}: {
+  title: string;
+  icon: typeof Plane;
+  places: { name: string; km: number; code?: string }[];
+  extra?: (place: { name: string; km: number; code?: string }) => string | null;
+}) {
+  return (
+    <div className="rounded-2xl bg-muted/40 px-3.5 py-3">
+      <div className="mb-1.5 inline-flex items-center gap-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        <Icon className="size-3.5" />
+        {title}
+      </div>
+      <ul className="space-y-1 text-sm">
+        {places.map((p, i) => (
+          <li
+            key={`${p.name}-${i}`}
+            className="flex items-center justify-between gap-3"
+          >
+            <span>
+              {p.name}
+              {p.code ? ` (${p.code})` : ""}
+              {extra?.(p) ? (
+                <span className="ml-1.5 text-xs text-muted-foreground">
+                  {extra(p)}
+                </span>
+              ) : null}
+            </span>
+            <span className="shrink-0 text-muted-foreground">
+              {formatKm(p.km)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

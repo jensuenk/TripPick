@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext } from "react";
+import { createContext, useContext, type Dispatch, type SetStateAction } from "react";
 import type { ApiMember, ApiTrip } from "@/lib/trip-data";
 
 export type TripContextValue = {
@@ -8,7 +8,7 @@ export type TripContextValue = {
   currentMember: ApiMember | null;
   setCurrentMember: (member: ApiMember | null) => void;
   refresh: () => Promise<void>;
-  setTrip: (trip: ApiTrip) => void;
+  setTrip: Dispatch<SetStateAction<ApiTrip>>;
 };
 
 export const TripContext = createContext<TripContextValue | null>(null);

@@ -5,6 +5,12 @@ export const bedSchema = z.object({
   count: z.number().int().min(1).max(20),
 });
 
+const nearbyPlaceSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  km: z.number().min(0).max(2000),
+  code: z.string().trim().max(8).optional(),
+});
+
 export const imageInputSchema = z.object({
   blobUrl: z
     .string()
@@ -19,7 +25,7 @@ export const imageInputSchema = z.object({
 
 export const createTripSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  type: z.enum(["ski", "roadtrip", "beach", "city"]).default("ski"),
+  type: z.enum(["ski", "summer", "roadtrip", "beach", "city"]).default("ski"),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   members: z
@@ -62,6 +68,33 @@ export const destinationPayloadSchema = z.object({
       skiResortSummary: z.string().max(4000).optional(),
       skiResortSummaryGeneratedAt: z.string().optional(),
       skiResortSummaryVersion: z.number().int().optional(),
+      checkIn: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      checkOut: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      nights: z.number().int().min(1).max(120).optional(),
+      tags: z.array(z.string().trim().min(1).max(40)).max(24).optional(),
+      flightIncluded: z.boolean().optional(),
+      nearbyAirports: z.array(nearbyPlaceSchema).max(6).optional(),
+      nearbyBeaches: z.array(nearbyPlaceSchema).max(8).optional(),
+      nearbyCities: z.array(nearbyPlaceSchema).max(8).optional(),
+      activities: z.array(z.string().trim().min(1).max(160)).max(12).optional(),
+      climate: z.string().max(500).optional(),
+      summerOverview: z.string().max(4000).optional(),
+      summerOverviewGeneratedAt: z.string().optional(),
+      summerOverviewVersion: z.number().int().optional(),
+      flightHint: z
+        .object({
+          hours: z.number().min(0).max(24).optional(),
+          priceMinEuros: z.number().min(0).max(5000).optional(),
+          priceMaxEuros: z.number().min(0).max(5000).optional(),
+          note: z.string().max(300).optional(),
+        })
+        .optional(),
     })
     .passthrough()
     .default({}),

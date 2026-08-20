@@ -10,7 +10,7 @@ import {
   Sofa,
 } from "lucide-react";
 
-export type TripTypeId = "ski" | "roadtrip" | "beach" | "city";
+export type TripTypeId = "ski" | "summer" | "roadtrip" | "beach" | "city";
 
 export type TripTypeDefinition = {
   id: TripTypeId;
@@ -29,6 +29,14 @@ export const TRIP_TYPES: TripTypeDefinition[] = [
     icon: Mountain,
     available: true,
     accent: "from-sky-500 to-indigo-600",
+  },
+  {
+    id: "summer",
+    label: "Zomervakantie",
+    description: "Strand, steden, vliegafstand en activiteiten",
+    icon: Palmtree,
+    available: true,
+    accent: "from-cyan-400 to-teal-600",
   },
   {
     id: "roadtrip",
@@ -82,3 +90,30 @@ export const IMAGE_CATEGORIES = [
 ] as const;
 
 export type ImageCategory = (typeof IMAGE_CATEGORIES)[number]["id"];
+
+/** Suggested amenity tags for summer stays — users can still add their own. */
+export const SUMMER_TAG_SUGGESTIONS = [
+  "Ontbijt",
+  "Halfpension",
+  "All-inclusive",
+  "Zwembad",
+  "Kinderzwembad",
+  "Kinderclub",
+  "Strand nabij",
+  "Airco",
+  "Parking",
+  "Wifi",
+  "Keuken",
+  "Family room",
+  "Huisdieren welkom",
+  "Airport transfer",
+  "Allergievriendelijk",
+] as const;
+
+export const HOME_AIRPORTS = [
+  { code: "BRU", label: "Brussel (BRU)" },
+  { code: "CRL", label: "Charleroi (CRL)" },
+  { code: "AMS", label: "Amsterdam (AMS)" },
+  { code: "EIN", label: "Eindhoven (EIN)" },
+  { code: "LGG", label: "Luik (LGG)" },
+] as const;

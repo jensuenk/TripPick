@@ -12,7 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { BedConfig, NearbyLift } from "@/db/schema";
+import type { BedConfig, NearbyLift, NearbyPlace } from "@/db/schema";
 import {
   bedTypeMeta,
   centsToEuros,
@@ -22,8 +22,14 @@ import {
   nearestLiftKm,
 } from "@/lib/format";
 import { geocodeLocation } from "@/lib/geocoding";
+import { cleanPlaces, nightsBetween } from "@/lib/summer";
 import type { ApiDestination } from "@/lib/trip-data";
-import { BED_TYPES, IMAGE_CATEGORIES, type ImageCategory } from "@/lib/trip-types";
+import {
+  BED_TYPES,
+  IMAGE_CATEGORIES,
+  SUMMER_TAG_SUGGESTIONS,
+  type ImageCategory,
+} from "@/lib/trip-types";
 import { uploadImage } from "@/lib/upload";
 import { cn, imageReferrerPolicy, shouldUnoptimizeImage } from "@/lib/utils";
 import { AnimatePresence, motion } from "framer-motion";
@@ -33,6 +39,7 @@ import {
   Check,
   Info,
   Loader2,
+  Plane,
   Plus,
   Sparkles,
   Trash2,
@@ -62,13 +69,24 @@ type FormState = {
   beds: BedConfig[];
   skiArea: string;
   nearbyLifts: NearbyLift[];
+  checkIn: string;
+  checkOut: string;
+  tags: string[];
+  flightIncluded: boolean;
+  nearbyAirports: NearbyPlace[];
+  nearbyBeaches: NearbyPlace[];
+  nearbyCities: NearbyPlace[];
   description: string;
   pros: string[];
   cons: string[];
   images: ImageDraft[];
 };
 
-function fromDestination(d?: ApiDestination | null): FormState {
+function fromDestination(
+  d: ApiDestination | null | undefined,
+  tripDates: { startDate: string; endDate: string }
+): FormState {
+  const details = d?.typeDetails;
   return {
     name: d?.name ?? "",
     locationText: d?.locationText ?? "",
@@ -80,9 +98,22 @@ function fromDestination(d?: ApiDestination | null): FormState {
     bedrooms: d?.bedrooms != null ? String(d.bedrooms) : "",
     bathrooms: d?.bathrooms != null ? String(d.bathrooms) : "",
     beds: d?.beds?.length ? d.beds : [],
-    skiArea: d?.typeDetails?.skiArea ?? "",
-    nearbyLifts: Array.isArray(d?.typeDetails?.nearbyLifts)
-      ? (d!.typeDetails.nearbyLifts as NearbyLift[])
+    skiArea: details?.skiArea ?? "",
+    nearbyLifts: Array.isArray(details?.nearbyLifts)
+      ? (details.nearbyLifts as NearbyLift[])
+      : [],
+    checkIn: details?.checkIn || tripDates.startDate,
+    checkOut: details?.checkOut || tripDates.endDate,
+    tags: Array.isArray(details?.tags) ? details.tags : [],
+    flightIncluded: Boolean(details?.flightIncluded),
+    nearbyAirports: Array.isArray(details?.nearbyAirports)
+      ? details.nearbyAirports
+      : [],
+    nearbyBeaches: Array.isArray(details?.nearbyBeaches)
+      ? details.nearbyBeaches
+      : [],
+    nearbyCities: Array.isArray(details?.nearbyCities)
+      ? details.nearbyCities
       : [],
     description: d?.description ?? "",
     pros: d?.pros ?? [],
@@ -106,18 +137,23 @@ type Props = {
   destination?: ApiDestination | null;
 };
 
-const STEPS = ["Basis", "Verblijf", "Ski", "Verhaal", "Foto's"] as const;
-
 export function DestinationWizard({ open, onOpenChange, destination }: Props) {
   const { trip, currentMember, setTrip } = useTrip();
   const isEdit = Boolean(destination);
+  const isSummer = trip.type === "summer";
+  const STEPS = isSummer
+    ? (["Basis", "Verblijf", "Zomer", "Verhaal", "Foto's"] as const)
+    : (["Basis", "Verblijf", "Ski", "Verhaal", "Foto's"] as const);
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(() => fromDestination(destination));
+  const [form, setForm] = useState<FormState>(() =>
+    fromDestination(destination, trip)
+  );
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const [uploading, setUploading] = useState<ImageCategory | null>(null);
   const [proInput, setProInput] = useState("");
   const [conInput, setConInput] = useState("");
+  const [tagInput, setTagInput] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
@@ -127,13 +163,14 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
   // Reset when opening for a different destination
   useEffect(() => {
     if (open) {
-      setForm(fromDestination(destination));
+      setForm(fromDestination(destination, trip));
       setStep(0);
       setImportUrl("");
       setImportError(null);
       setImportDisclaimer(false);
+      setTagInput("");
     }
-  }, [open, destination]);
+  }, [open, destination, trip.startDate, trip.endDate]);
 
   const canNext = step === 0 ? form.name.trim().length > 0 : true;
 
@@ -172,7 +209,10 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
       const res = await fetch("/api/extract-listing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({
+          url,
+          tripType: isSummer ? "summer" : "ski",
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -206,6 +246,29 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
           }))
         : [];
 
+      function parsePlaces(raw: unknown): NearbyPlace[] {
+        if (!Array.isArray(raw)) return [];
+        return raw
+          .filter(
+            (p: { name?: unknown; km?: unknown }) =>
+              typeof p?.name === "string" && typeof p?.km === "number"
+          )
+          .map((p: { name: string; km: number; code?: string }) => ({
+            name: p.name,
+            km: p.km,
+            ...(typeof p.code === "string" && p.code.trim()
+              ? { code: p.code.trim().toUpperCase() }
+              : {}),
+          }));
+      }
+
+      const nearbyAirports = parsePlaces(data.nearbyAirports);
+      const nearbyBeaches = parsePlaces(data.nearbyBeaches);
+      const nearbyCities = parsePlaces(data.nearbyCities);
+      const tags = Array.isArray(data.tags)
+        ? data.tags.filter((t: unknown): t is string => typeof t === "string" && t.trim().length > 0)
+        : [];
+
       const locationText =
         typeof data.locationText === "string" ? data.locationText : "";
 
@@ -233,6 +296,22 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
             ? data.skiArea
             : f.skiArea,
         nearbyLifts: nearbyLifts.length ? nearbyLifts : f.nearbyLifts,
+        tags: tags.length ? tags : f.tags,
+        flightIncluded:
+          typeof data.flightIncluded === "boolean"
+            ? data.flightIncluded
+            : f.flightIncluded,
+        nearbyAirports: nearbyAirports.length ? nearbyAirports : f.nearbyAirports,
+        nearbyBeaches: nearbyBeaches.length ? nearbyBeaches : f.nearbyBeaches,
+        nearbyCities: nearbyCities.length ? nearbyCities : f.nearbyCities,
+        checkIn:
+          typeof data.checkIn === "string" && data.checkIn
+            ? data.checkIn
+            : f.checkIn,
+        checkOut:
+          typeof data.checkOut === "string" && data.checkOut
+            ? data.checkOut
+            : f.checkOut,
         description:
           typeof data.description === "string" && data.description
             ? data.description
@@ -309,14 +388,24 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
         description: form.description || null,
         pros: form.pros,
         cons: form.cons,
-        typeDetails: {
-          skiArea: form.skiArea || undefined,
-          nearbyLifts: form.nearbyLifts.filter(
-            (l) => l.name.trim() && Number.isFinite(l.km)
-          ),
-          // Derived from the nearest entry in nearbyLifts (for cards / legacy)
-          kmToLift: nearestLiftKm(form.nearbyLifts) ?? undefined,
-        },
+        typeDetails: isSummer
+          ? {
+              checkIn: form.checkIn || undefined,
+              checkOut: form.checkOut || undefined,
+              nights: nightsBetween(form.checkIn, form.checkOut) ?? undefined,
+              tags: form.tags,
+              flightIncluded: form.flightIncluded || undefined,
+              nearbyAirports: cleanPlaces(form.nearbyAirports),
+              nearbyBeaches: cleanPlaces(form.nearbyBeaches),
+              nearbyCities: cleanPlaces(form.nearbyCities),
+            }
+          : {
+              skiArea: form.skiArea || undefined,
+              nearbyLifts: form.nearbyLifts.filter(
+                (l) => l.name.trim() && Number.isFinite(l.km)
+              ),
+              kmToLift: nearestLiftKm(form.nearbyLifts) ?? undefined,
+            },
         images: form.images.map((img, index) => ({
           blobUrl: img.blobUrl,
           category: img.category,
@@ -498,7 +587,7 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                           <Info className="mt-0.5 size-3.5 shrink-0" />
                           <span>
                             Controleer de ingevulde gegevens — prijzen,
-                            afstanden en skigebied zijn schattingen op basis van
+                            afstanden en details zijn schattingen op basis van
                             de advertentie.
                           </span>
                         </div>
@@ -517,7 +606,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                       onChange={(e) =>
                         setForm((f) => ({ ...f, name: e.target.value }))
                       }
-                      placeholder="Chalet Alpine Glow"
+                      placeholder={
+                        isSummer ? "Villa Cala d'Or" : "Chalet Alpine Glow"
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -535,7 +626,9 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                           }))
                         }
                         onBlur={() => void handleGeocode()}
-                        placeholder="Les Gets, Frankrijk"
+                        placeholder={
+                          isSummer ? "Cala d'Or, Mallorca" : "Les Gets, Frankrijk"
+                        }
                       />
                       <Button
                         type="button"
@@ -712,7 +805,240 @@ export function DestinationWizard({ open, onOpenChange, destination }: Props) {
                 </>
               )}
 
-              {step === 2 && (
+              {step === 2 && isSummer && (
+                <>
+                  <div>
+                    <Label>Verblijfsdata van deze accommodatie</Label>
+                    <p className="mt-0.5 mb-2 text-xs text-muted-foreground">
+                      Elke optie mag eigen in- en uitcheck hebben. Standaard
+                      staat de reisperiode ingevuld.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="check-in" className="text-xs">
+                          Check-in
+                        </Label>
+                        <Input
+                          id="check-in"
+                          className="h-11"
+                          type="date"
+                          value={form.checkIn}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, checkIn: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="check-out" className="text-xs">
+                          Check-out
+                        </Label>
+                        <Input
+                          id="check-out"
+                          className="h-11"
+                          type="date"
+                          min={form.checkIn || undefined}
+                          value={form.checkOut}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, checkOut: e.target.value }))
+                          }
+                        />
+                      </div>
+                    </div>
+                    {nightsBetween(form.checkIn, form.checkOut) != null && (
+                      <p className="mt-2 text-sm font-medium text-sky-700">
+                        {nightsBetween(form.checkIn, form.checkOut)}{" "}
+                        {nightsBetween(form.checkIn, form.checkOut) === 1
+                          ? "nacht"
+                          : "nachten"}
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        flightIncluded: !f.flightIncluded,
+                      }))
+                    }
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition",
+                      form.flightIncluded
+                        ? "border-teal-400 bg-teal-50 shadow-sm"
+                        : "border-sky-100 bg-white hover:bg-sky-50/60"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border",
+                        form.flightIncluded
+                          ? "border-teal-600 bg-teal-600 text-white"
+                          : "border-input bg-white"
+                      )}
+                    >
+                      {form.flightIncluded && <Check className="size-3.5" />}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-semibold">
+                        <Plane className="size-3.5" />
+                        Vlucht inbegrepen
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                        Zet dit aan als de prijs al vliegtickets bevat
+                        (pakketreis). Dan hoeft niemand apart te vliegen.
+                      </span>
+                    </span>
+                  </button>
+
+                  <div className="space-y-2">
+                    <Label>Tags / faciliteiten</Label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SUMMER_TAG_SUGGESTIONS.map((tag) => {
+                        const selected = form.tags.some(
+                          (t) => t.toLowerCase() === tag.toLowerCase()
+                        );
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            className={cn(
+                              "rounded-full px-2.5 py-1 text-xs font-medium ring-1 transition",
+                              selected
+                                ? "bg-teal-600 text-white ring-teal-600"
+                                : "bg-white text-muted-foreground ring-sky-100 hover:bg-sky-50"
+                            )}
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                tags: selected
+                                  ? f.tags.filter(
+                                      (t) =>
+                                        t.toLowerCase() !== tag.toLowerCase()
+                                    )
+                                  : [...f.tags, tag],
+                              }))
+                            }
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        className="h-10"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const v = tagInput.trim();
+                            if (!v) return;
+                            setForm((f) =>
+                              f.tags.some(
+                                (t) => t.toLowerCase() === v.toLowerCase()
+                              )
+                                ? f
+                                : { ...f, tags: [...f.tags, v] }
+                            );
+                            setTagInput("");
+                          }
+                        }}
+                        placeholder="Eigen tag…"
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => {
+                          const v = tagInput.trim();
+                          if (!v) return;
+                          setForm((f) =>
+                            f.tags.some(
+                              (t) => t.toLowerCase() === v.toLowerCase()
+                            )
+                              ? f
+                              : { ...f, tags: [...f.tags, v] }
+                          );
+                          setTagInput("");
+                        }}
+                      >
+                        <Plus />
+                      </Button>
+                    </div>
+                    {form.tags.filter(
+                      (t) =>
+                        !SUMMER_TAG_SUGGESTIONS.some(
+                          (s) => s.toLowerCase() === t.toLowerCase()
+                        )
+                    ).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {form.tags
+                          .filter(
+                            (t) =>
+                              !SUMMER_TAG_SUGGESTIONS.some(
+                                (s) => s.toLowerCase() === t.toLowerCase()
+                              )
+                          )
+                          .map((t) => (
+                            <span
+                              key={t}
+                              className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-800 ring-1 ring-teal-100"
+                            >
+                              {t}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setForm((f) => ({
+                                    ...f,
+                                    tags: f.tags.filter((x) => x !== t),
+                                  }))
+                                }
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <PlacesEditor
+                    label="Nabije luchthavens"
+                    emptyHint="Voeg de luchthaven(s) toe met IATA-code, bv. BCN."
+                    namePlaceholder="Luchthaven"
+                    places={form.nearbyAirports}
+                    showCode
+                    onChange={(nearbyAirports) =>
+                      setForm((f) => ({ ...f, nearbyAirports }))
+                    }
+                  />
+                  <PlacesEditor
+                    label="Nabije stranden"
+                    emptyHint="Hoe ver is het water?"
+                    namePlaceholder="Strand"
+                    places={form.nearbyBeaches}
+                    onChange={(nearbyBeaches) =>
+                      setForm((f) => ({ ...f, nearbyBeaches }))
+                    }
+                  />
+                  <PlacesEditor
+                    label="Nabije steden"
+                    emptyHint="Centrum, oude stad of grotere stad in de buurt."
+                    namePlaceholder="Stad"
+                    places={form.nearbyCities}
+                    onChange={(nearbyCities) =>
+                      setForm((f) => ({ ...f, nearbyCities }))
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Na opslaan maakt AI een overzicht van klimaat, activiteiten
+                    en een indicatie van vluchttijd en prijs.
+                  </p>
+                </>
+              )}
+
+              {step === 2 && !isSummer && (
                 <>
                   <div className="space-y-2">
                     <Label>Skigebied in de buurt</Label>
@@ -1077,6 +1403,110 @@ function ChipList({
             </button>
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function PlacesEditor({
+  label,
+  emptyHint,
+  namePlaceholder,
+  places,
+  showCode,
+  onChange,
+}: {
+  label: string;
+  emptyHint: string;
+  namePlaceholder: string;
+  places: NearbyPlace[];
+  showCode?: boolean;
+  onChange: (next: NearbyPlace[]) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          onClick={() => onChange([...places, { name: "", km: 0, code: "" }])}
+        >
+          <Plus />
+          Toevoegen
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {places.map((place, index) => (
+          <div key={index} className="flex items-center gap-2">
+            <Input
+              className="h-10 flex-1"
+              value={place.name}
+              placeholder={namePlaceholder}
+              onChange={(e) =>
+                onChange(
+                  places.map((p, i) =>
+                    i === index ? { ...p, name: e.target.value } : p
+                  )
+                )
+              }
+            />
+            {showCode && (
+              <Input
+                className="h-10 w-16 shrink-0 uppercase"
+                value={place.code ?? ""}
+                placeholder="IATA"
+                maxLength={4}
+                onChange={(e) =>
+                  onChange(
+                    places.map((p, i) =>
+                      i === index
+                        ? { ...p, code: e.target.value.toUpperCase() }
+                        : p
+                    )
+                  )
+                }
+              />
+            )}
+            <div className="relative w-24 shrink-0">
+              <Input
+                className="h-10 pr-9"
+                type="number"
+                min={0}
+                step="0.1"
+                value={Number.isFinite(place.km) ? place.km : ""}
+                placeholder="0"
+                onChange={(e) =>
+                  onChange(
+                    places.map((p, i) =>
+                      i === index
+                        ? {
+                            ...p,
+                            km: Math.max(0, Number(e.target.value) || 0),
+                          }
+                        : p
+                    )
+                  )
+                }
+              />
+              <span className="pointer-events-none absolute top-1/2 right-2.5 -translate-y-1/2 text-xs text-muted-foreground">
+                km
+              </span>
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => onChange(places.filter((_, i) => i !== index))}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ))}
+        {places.length === 0 && (
+          <p className="text-sm text-muted-foreground">{emptyHint}</p>
+        )}
       </div>
     </div>
   );

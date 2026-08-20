@@ -85,6 +85,25 @@ export function formatPrice(cents: number | null | undefined): string | null {
   }).format(cents / 100);
 }
 
+export function formatPriceRange(
+  minCents: number | null | undefined,
+  maxCents: number | null | undefined
+): string | null {
+  const low = minCents != null ? formatPrice(minCents) : null;
+  const high = maxCents != null ? formatPrice(maxCents) : null;
+  if (low && high && low !== high) return `${low} – ${high}`;
+  return low ?? high;
+}
+
+export function formatPricePerNight(
+  cents: number | null | undefined,
+  nights: number | null | undefined
+): string | null {
+  if (cents == null || nights == null || nights < 1) return null;
+  const perNight = formatPrice(Math.round(cents / nights));
+  return perNight ? `${perNight} / nacht` : null;
+}
+
 export function formatRelative(date: string | Date): string {
   try {
     const d = typeof date === "string" ? new Date(date) : date;

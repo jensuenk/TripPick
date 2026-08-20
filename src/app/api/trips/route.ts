@@ -14,8 +14,8 @@ export async function POST(request: Request) {
       return jsonError("Einddatum moet op of na de begindatum liggen");
     }
 
-    if (input.type !== "ski") {
-      return jsonError("Momenteel zijn alleen skireizen beschikbaar");
+    if (input.type !== "ski" && input.type !== "summer") {
+      return jsonError("Momenteel zijn alleen ski- en zomereizen beschikbaar");
     }
 
     const db = getDb();

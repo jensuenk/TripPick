@@ -1,5 +1,6 @@
 import type { DestinationTypeDetails, NearbyLift } from "@/db/schema";
 import { nearestLiftKm } from "@/lib/format";
+import { mergeSummerCache } from "@/lib/summer-summary";
 
 /** Bump when the summary prompt changes so old caches refresh. */
 export const SKI_SUMMARY_VERSION = 5;
@@ -118,6 +119,8 @@ export function mergeTypeDetails(
     delete next.skiResortSummaryGeneratedAt;
     delete next.skiResortSummaryVersion;
   }
+
+  mergeSummerCache(prev, next);
 
   return next;
 }

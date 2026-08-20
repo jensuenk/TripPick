@@ -6,6 +6,7 @@ import { scrapeListingPage } from "@/lib/scrape-listing";
 
 const bodySchema = z.object({
   url: z.string().trim().min(8).max(2000),
+  tripType: z.enum(["ski", "summer"]).optional(),
 });
 
 export async function POST(request: Request) {
@@ -18,13 +19,14 @@ export async function POST(request: Request) {
     }
 
     const json = await request.json();
-    const { url } = bodySchema.parse(json);
+    const { url, tripType } = bodySchema.parse(json);
 
     const scraped = await scrapeListingPage(url);
     const extracted = await extractListingWithAi({
       url: scraped.url,
       title: scraped.title,
       pageText: scraped.text,
+      tripType,
     });
 
     return jsonOk({

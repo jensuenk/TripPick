@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Loader2,
   Mountain,
+  Palmtree,
   Plus,
   RefreshCw,
   Users,
@@ -185,7 +186,11 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
         <header className="sticky top-0 z-30 border-b border-sky-100/80 bg-white/85 backdrop-blur-md">
           <div className="mx-auto flex max-w-5xl items-start gap-3 px-4 py-4">
             <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
-              <Mountain className="size-5" />
+              {trip.type === "summer" ? (
+                <Palmtree className="size-5" />
+              ) : (
+                <Mountain className="size-5" />
+              )}
             </div>
             <div className="min-w-0 flex-1">
               <h1 className="truncate text-lg font-bold">{trip.name}</h1>
@@ -256,12 +261,17 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
               className="flex flex-col items-center rounded-3xl bg-white/80 px-6 py-16 text-center shadow-sm ring-1 ring-sky-100"
             >
               <div className="mb-4 flex size-16 items-center justify-center rounded-3xl bg-sky-50 text-sky-500">
-                <Mountain className="size-8" />
+                {trip.type === "summer" ? (
+                  <Palmtree className="size-8" />
+                ) : (
+                  <Mountain className="size-8" />
+                )}
               </div>
               <h2 className="text-xl font-bold">Nog geen bestemmingen</h2>
               <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-                Voeg de eerste chalet-, appartement- of hoteloptie toe zodat
-                iedereen kan beginnen stemmen.
+                {trip.type === "summer"
+                  ? "Voeg de eerste villa-, appartement- of hoteloptie toe zodat iedereen kan beginnen stemmen."
+                  : "Voeg de eerste chalet-, appartement- of hoteloptie toe zodat iedereen kan beginnen stemmen."}
               </p>
               <Button
                 className="mt-6 h-11 rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-600 text-white"
