@@ -179,7 +179,12 @@ export function TripDashboard({ token, initialDestinationId }: Props) {
         refresh: async () => {
           await refresh();
         },
-        setTrip,
+        setTrip: (update) => {
+          setTrip((current) => {
+            if (!current) return current;
+            return typeof update === "function" ? update(current) : update;
+          });
+        },
       }}
     >
       <main className="min-h-dvh bg-[oklch(0.975_0.012_230)] pb-28">
