@@ -72,7 +72,7 @@ Hobby Vercel is free for non-commercial / family use.
 3. **Trip dashboard** `/trip/[token]` → pick who you are → browse destination cards
 4. **Add destination** → multi-step form (basics, beds, ski info, pros/cons, photos)
 5. **Vote** with heart / like / maybe / no and comment under each card
-6. **Detail** view with gallery, map, ski map, vote breakdown
+6. **Detail** view with gallery, map, ski map, votes
 
 ## Extending later
 
