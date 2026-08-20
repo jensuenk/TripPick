@@ -1,6 +1,6 @@
 # TripPick
 
-Mobile-first trip destination voting for families and friends. Create a **ski trip** or **summer holiday**, share a private link, add accommodation options, then vote, favorite, and comment until everyone agrees.
+Trip destination collection and voting for families and friends. Create a **ski trip** or **summer holiday**, share a private link, add accommodation options, then vote, favorite, and comment until everyone agrees.
 
 The UI is in Dutch (`nl-BE`).
 
